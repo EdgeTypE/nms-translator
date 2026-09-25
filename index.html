@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Translate No Man's Sky alien dialogue using the local word dataset.">
+  <title>No Man's Sky Translator</title>
+</head>
+<body>
+  <main>
+    <h1>No Man's Sky Translator</h1>
+    <p>Translate alien dialogue to English, or English dialogue to an alien language.</p>
+
+    <form id="translator-form">
+      <p>
+        <label for="race-select">Alien race</label><br>
+        <select id="race-select" name="race" required>
+          <option value="">Loading races…</option>
+        </select>
+      </p>
+
+      <p>
+        <label for="direction-select">Translation direction</label><br>
+        <select id="direction-select" name="direction">
+          <option value="alien-to-english">Alien to English</option>
+          <option value="english-to-alien">English to Alien</option>
+        </select>
+      </p>
+
+      <p>
+        <label for="input-text">Input text</label><br>
+        <textarea
+          id="input-text"
+          name="input"
+          rows="4"
+          spellcheck="false"
+          autocapitalize="off"
+          placeholder="Enter text to translate"
+        ></textarea>
+      </p>
+
+      <button type="submit">Translate</button>
+    </form>
+
+    <section aria-labelledby="output-heading">
+      <h2 id="output-heading">Output text</h2>
+      <label for="output-text">Translation</label><br>
+      <textarea id="output-text" name="output" rows="4" readonly></textarea>
+      <p id="status" role="status"></p>
+    </section>
+  </main>
+
+  <script src="data/alien-words.js"></script>
+  <script>
+    (() => {
+      "use strict";
+
+      const data = window.NMS_ALIEN_DATA;
+      const form = document.querySelector("#translator-form");
+      const raceSelect = document.querySelector("#race-select");
+      const directionSelect = document.querySelector("#direction-select");
+      const input = document.querySelector("#input-text");
+      const output = document.querySelector("#output-text");
+      const status = document.querySelector("#status");
+      const tokenPattern = /[\p{L}\p{N}]+(?:['’.-][\p{L}\p{N}]+)*/gu;
+      const indexes = new Map();
+
+      function canonicalize(value) {
+        return String(value)
+          .normalize("NFKC")
+          .replace(/[’‘]/g, "'")
+          .toLocaleLowerCase("en-US");
+      }
+
+      function compareCandidates(left, right) {
+        const frequencyDifference = (right.entry.frequency ?? 0) - (left.entry.frequency ?? 0);
+        if (frequencyDifference !== 0) return frequencyDifference;
+
+        const levelDifference = (left.entry.level ?? 0) - (right.entry.level ?? 0);
+        if (levelDifference !== 0) return levelDifference;
+
+        return left.entry.sourceIndex - right.entry.sourceIndex;
+      }
+
+      function addLookup(lookup, surface, entry, form) {
+        const key = canonicalize(surface);
+        if (!key) return;
+
+        if (!lookup.has(key)) lookup.set(key, []);
+        const records = lookup.get(key);
+
+        if (!records.some((record) => record.entry.sourceIndex === entry.sourceIndex)) {
+          records.push({ entry, form, surface });
+          records.sort(compareCandidates);
+        }
+      }
+
+      function buildIndexes() {
+        for (const race of data.races) {
+          indexes.set(race.name, {
+            alienToEnglish: new Map(),
+            englishToAlien: new Map()
+          });
+        }
+
+        for (const entry of data.entries) {
+          const raceIndex = indexes.get(entry.race);
+          if (!raceIndex || !entry.forms) continue;
+
+          for (const [form, surface] of Object.entries(entry.forms)) {
+            addLookup(raceIndex.alienToEnglish, surface, entry, form);
+          }
+
+          addLookup(raceIndex.englishToAlien, entry.english, entry, "normal");
+        }
+      }
+
+      function isUpperCaseToken(token) {
+        const letters = token.match(/\p{L}/gu);
+        return Boolean(letters && letters.every((letter) => letter === letter.toLocaleUpperCase("en-US")));
+      }
+
+      function startsUpperCase(token) {
+        return /^\p{Lu}/u.test(token);
+      }
+
+      function capitalize(value) {
+        const firstCharacter = [...value][0];
+        return firstCharacter
+          ? firstCharacter.toLocaleUpperCase("en-US") + value.slice(firstCharacter.length)
+          : value;
+      }
+
+      function toEnglish(entry, token, form) {
+        if (isUpperCaseToken(token) || form === "uppercase") {
+          return entry.english.toLocaleUpperCase("en-US");
+        }
+        if (startsUpperCase(token) || form === "capitalized") {
+          return capitalize(entry.english);
+        }
+        return entry.english;
+      }
+
+      function toAlien(entry, token) {
+        const form = isUpperCaseToken(token)
+          ? "uppercase"
+          : startsUpperCase(token)
+            ? "capitalized"
+            : "normal";
+        return entry.forms[form] || entry.forms.normal;
+      }
+
+      function translate(text) {
+        const raceName = raceSelect.value;
+        const direction = directionSelect.value;
+        const raceIndex = indexes.get(raceName);
+        if (!raceIndex) return "";
+
+        const lookup = direction === "alien-to-english"
+          ? raceIndex.alienToEnglish
+          : raceIndex.englishToAlien;
+        let result = "";
+        let cursor = 0;
+        let matched = 0;
+        let unknown = 0;
+
+        for (const match of text.matchAll(tokenPattern)) {
+          const token = match[0];
+          const record = lookup.get(canonicalize(token))?.[0];
+          result += text.slice(cursor, match.index);
+          cursor = match.index + token.length;
+
+          if (!record) {
+            result += token;
+            unknown += 1;
+            continue;
+          }
+
+          result += direction === "alien-to-english"
+            ? toEnglish(record.entry, token, record.form)
+            : toAlien(record.entry, token);
+          matched += 1;
+        }
+
+        result += text.slice(cursor);
+        return { text: result, matched, unknown };
+      }
+
+      function render() {
+        const text = input.value;
+        if (!text.trim()) {
+          output.value = "";
+          status.textContent = "Enter text to translate.";
+          return;
+        }
+
+        const result = translate(text);
+        output.value = result.text;
+        status.textContent = `${result.matched} word${result.matched === 1 ? "" : "s"} translated` +
+          (result.unknown ? `, ${result.unknown} unknown` : "") + ".";
+      }
+
+      if (!data || !Array.isArray(data.races) || !Array.isArray(data.entries)) {
+        raceSelect.disabled = true;
+        directionSelect.disabled = true;
+        input.disabled = true;
+        form.querySelector("button").disabled = true;
+        status.textContent = "The dataset could not be loaded from data/alien-words.js.";
+        return;
+      }
+
+      buildIndexes();
+      raceSelect.replaceChildren();
+      for (const race of data.races) {
+        const option = document.createElement("option");
+        option.value = race.name;
+        option.textContent = race.name;
+        raceSelect.append(option);
+      }
+
+      form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        render();
+      });
+      raceSelect.addEventListener("change", render);
+      directionSelect.addEventListener("change", render);
+      render();
+    })();
+  </script>
+</body>
+</html>
