@@ -1,7 +1,9 @@
 <script lang="ts">
-  import { onDestroy } from 'svelte';
+  import { onDestroy, onMount } from 'svelte';
+  import { get } from 'svelte/store';
   import { alienData, translationEngine } from '../data';
   import { RACE_META } from '../races';
+  import { phrasebookLookup } from '../stores/lookup';
   import type { AlienEntry, Category, RaceName } from '../types';
   import Icon from './Icon.svelte';
   import RaceGlyph from './RaceGlyph.svelte';
@@ -15,6 +17,16 @@
 
   const categories: Array<Category | 'ALL'> = ['ALL', 'MISC', 'HELP', 'TRADE', 'LORE', 'DIRECTIONS', 'THREAT', 'TECH'];
   let copyTimer: number | undefined;
+
+  // App remounts this view per navigation, so a word handed over from the
+  // translator is consumed once here and the store reset for next time.
+  onMount(() => {
+    const pending = get(phrasebookLookup);
+    if (!pending) return;
+    query = pending;
+    limit = 120;
+    phrasebookLookup.set('');
+  });
 
   $: raceEntries = translationEngine.getEntries(selectedRace);
   $: normalizedQuery = query.trim().toLocaleLowerCase('en');

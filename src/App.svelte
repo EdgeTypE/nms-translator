@@ -3,6 +3,7 @@
   import { alienData } from './lib/data';
   import PAGE_META from './lib/pages.json';
   import { loadSession, pathFor, resolveRace, resolveView, saveSession } from './lib/routing';
+import { phrasebookLookup } from './lib/stores/lookup';
   import type { RaceName, ViewId } from './lib/types';
   import Icon from './lib/components/Icon.svelte';
   import NpcView from './lib/components/NpcView.svelte';
@@ -109,6 +110,12 @@
     syncHead(view);
   }
 
+  /** Opens the phrasebook already filtered to a word from the translator. */
+  function lookupWord(word: string) {
+    phrasebookLookup.set(word);
+    navigate('phrasebook');
+  }
+
   function handlePointerMove(event: PointerEvent) {
     cursorX = event.clientX;
     cursorY = event.clientY;
@@ -150,6 +157,7 @@
               bind:selectedRace
               bind:sourceText={draftText}
               bind:direction={draftDirection}
+              onLookup={lookupWord}
             />
           {:else}
             <PhrasebookView bind:selectedRace />

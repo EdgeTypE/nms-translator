@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { TranslationEngine } from './translator';
-import type { AlienArchive, AlienEntry, RaceName } from './types';
+import type { AlienArchive, AlienEntry, Category, RaceName } from './types';
 
 const makeEntry = (
   sourceIndex: number,
@@ -8,6 +8,7 @@ const makeEntry = (
   surface: string,
   frequency = 1,
   race: RaceName = 'Gek',
+  category: Category = 'MISC',
 ): AlienEntry => ({
   sourceIndex,
   id: english.toUpperCase(),
@@ -18,7 +19,7 @@ const makeEntry = (
   raceEnum: race,
   markov: 'Region_NO',
   frequency,
-  category: 'MISC',
+  category,
   level: 1,
   surface,
 });
@@ -109,5 +110,80 @@ describe('TranslationEngine', () => {
     expect(result.output).toBe('nam unknown');
     expect(result.unknownTokens).toEqual(['unknown']);
     expect(result.coverage).toBe(50);
+  });
+});
+
+/**
+ * 'suth' is ambiguous on purpose: welcome is rarer, so frequency alone always
+ * picks hello. The LORE words around it are unambiguous, so they establish a
+ * dominant category and flip the reading.
+ */
+const contextual: AlienArchive = {
+  schema: 2,
+  generator: 'test',
+  generatorVersion: '2.1.0',
+  generatedUtc: '2026-01-01T00:00:00Z',
+  sources: {
+    speechTable: '',
+    speechTableSha256: '',
+    executable: '',
+    executableSha256: '',
+    englishLocalisation: '',
+  },
+  races: [
+    { id: 'Traders', name: 'Gek', markov: 'Region_NO' },
+    { id: 'Explorers', name: 'Korvax', markov: 'Region_RU' },
+    { id: 'Warriors', name: "Vy'keen", markov: 'Region_CH' },
+    { id: 'Atlas', name: 'Atlas', markov: 'Generic' },
+    { id: 'Builders', name: 'Autophage', markov: 'Generic' },
+  ],
+  counts: {
+    allSpeechEntries: 6,
+    includedEntries: 6,
+    localizationEntries: 0,
+    races: { Gek: 6, Korvax: 0, "Vy'keen": 0, Atlas: 0, Autophage: 0 },
+    uniqueSurfaces: 5,
+    ambiguousRaceSurfacePairs: 1,
+  },
+  notes: [],
+  entries: [
+    makeEntry(0, 'hello', 'suth', 9, 'Gek', 'HELP'),
+    makeEntry(1, 'welcome', 'suth', 3, 'Gek', 'LORE'),
+    makeEntry(2, 'ancient', 'oldi', 5, 'Gek', 'LORE'),
+    makeEntry(3, 'forgotten', 'ulvo', 4, 'Gek', 'LORE'),
+    makeEntry(4, 'help', 'naav', 6, 'Gek', 'HELP'),
+    makeEntry(5, 'signal', 'tev', 5, 'Gek', 'HELP'),
+  ],
+};
+
+const contextualEngine = new TranslationEngine(contextual);
+
+describe('context aware ambiguity', () => {
+  it('prefers the alternate whose category the sentence is about', () => {
+    // LORE x2 beats HELP x0 from the ambiguous word itself.
+    const lore = contextualEngine.translate('suth oldi ulvo', 'alien-to-english', 'Gek');
+    expect(lore.output).toBe('welcome ancient forgotten');
+    expect(lore.ambiguousTokenCount).toBe(1);
+  });
+
+  it('keeps the most frequent meaning when the context agrees with it', () => {
+    // HELP x2 dominates, so the frequent reading stands.
+    const help = contextualEngine.translate('suth naav tev', 'alien-to-english', 'Gek');
+    expect(help.output).toBe('hello help signal');
+    expect(help.ambiguousTokenCount).toBe(1);
+  });
+
+  it('falls back to frequency when the sentence offers no usable context', () => {
+    const alone = contextualEngine.translate('suth', 'alien-to-english', 'Gek');
+    expect(alone.output).toBe('hello');
+    expect(alone.ambiguousMatches[0].alternatives).toEqual(['welcome']);
+  });
+
+  it('never lists the chosen reading among its own alternates', () => {
+    const lore = contextualEngine.translate('suth oldi ulvo', 'alien-to-english', 'Gek');
+    const match = lore.ambiguousMatches[0];
+    expect(match.primary).toBe('welcome');
+    expect(match.alternatives).not.toContain(match.primary);
+    expect(match.alternatives).toEqual(['hello']);
   });
 });

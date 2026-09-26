@@ -37,6 +37,54 @@ const uniqueEntries = (entries: AlienEntry[]) => {
 
 const uniqueStrings = (values: string[]) => [...new Set(values.filter(Boolean))];
 
+/**
+ * The category the sentence is mostly about, used to break ambiguity ties.
+ *
+ * Only words whose category is certain get a vote. An ambiguous word's category
+ * depends on which of its meanings we pick, which is the very decision being
+ * made here, so letting those vote would be circular. A word whose candidate
+ * entries all share one category does vote: its category is fixed no matter
+ * which entry wins.
+ *
+ * Ties go to the category seen first, because Map preserves insertion order,
+ * so the same sentence always resolves the same way.
+ */
+function dominantCategory(
+  tokens: string[],
+  index: Map<string, AlienEntry[]>,
+): string | null {
+  const counts = new Map<string, number>();
+
+  for (const token of tokens) {
+    if (isWhitespace(token) || !isWord(token)) continue;
+    const matches = uniqueEntries(index.get(normalize(token)) ?? []);
+    if (matches.length === 0) continue;
+    if (new Set(matches.map((entry) => entry.category)).size > 1) continue;
+    const category = sortEntries(matches)[0].category;
+    counts.set(category, (counts.get(category) ?? 0) + 1);
+  }
+
+  let best: string | null = null;
+  let bestCount = 0;
+  for (const [category, count] of counts) {
+    if (count > bestCount) {
+      best = category;
+      bestCount = count;
+    }
+  }
+  return best;
+}
+
+/**
+ * Picks the meaning to print. A candidate in the sentence's dominant category
+ * wins, so context beats raw frequency; otherwise the most frequent entry does,
+ * which is the behaviour when there is no usable context at all.
+ */
+function pickPrimary(sorted: AlienEntry[], context: string | null) {
+  const contextual = context ? sorted.find((entry) => entry.category === context) : undefined;
+  return contextual ?? sorted[0];
+}
+
 export class TranslationEngine {
   private readonly entriesByRace = new Map<RaceName, AlienEntry[]>();
   private readonly englishIndexes = new Map<RaceName, Map<string, AlienEntry[]>>();
@@ -89,6 +137,8 @@ export class TranslationEngine {
 
   private translateToAlien(source: string, race: RaceName): TranslationResult {
     const index = this.englishIndexes.get(race) ?? new Map<string, AlienEntry[]>();
+    const tokens = source.match(TOKEN_PATTERN) ?? [];
+    const context = dominantCategory(tokens, index);
     const segments: TranslationSegment[] = [];
     const unknownTokens: string[] = [];
     const ambiguousMatches: TranslationResult['ambiguousMatches'] = [];
@@ -96,7 +146,7 @@ export class TranslationEngine {
     let matchedTokenCount = 0;
     let ambiguousTokenCount = 0;
 
-    for (const token of source.match(TOKEN_PATTERN) ?? []) {
+    for (const token of tokens) {
       if (isWhitespace(token)) {
         segments.push({ source: token, output: token, status: 'separator', alternatives: [] });
         continue;
@@ -115,10 +165,14 @@ export class TranslationEngine {
         continue;
       }
 
-      const primary = sortEntries(matches)[0];
+      const sorted = sortEntries(matches);
+      const primary = pickPrimary(sorted, context);
       const output = primary.surface;
+      // Same rule as the other direction: the alternates are whatever is left
+      // once the chosen entry is removed, since context can promote a candidate
+      // that was not the most frequent.
       const alternatives = uniqueStrings(
-        sortEntries(matches.slice(1)).map((entry) => entry.surface),
+        sorted.filter((entry) => entry !== primary).map((entry) => entry.surface),
       );
       const isAmbiguous = alternatives.length > 0;
       if (isAmbiguous) {
@@ -146,6 +200,8 @@ export class TranslationEngine {
 
   private translateToEnglish(source: string, race: RaceName): TranslationResult {
     const index = this.surfaceIndexes.get(race) ?? new Map<string, AlienEntry[]>();
+    const tokens = source.match(TOKEN_PATTERN) ?? [];
+    const context = dominantCategory(tokens, index);
     const segments: TranslationSegment[] = [];
     const unknownTokens: string[] = [];
     const ambiguousMatches: TranslationResult['ambiguousMatches'] = [];
@@ -153,7 +209,7 @@ export class TranslationEngine {
     let matchedTokenCount = 0;
     let ambiguousTokenCount = 0;
 
-    for (const token of source.match(TOKEN_PATTERN) ?? []) {
+    for (const token of tokens) {
       if (isWhitespace(token)) {
         segments.push({ source: token, output: token, status: 'separator', alternatives: [] });
         continue;
@@ -173,8 +229,14 @@ export class TranslationEngine {
       }
 
       const sorted = sortEntries(matches);
-      const primary = sorted[0];
-      const alternatives = uniqueStrings(sorted.slice(1).map((entry) => entry.english));
+      const primary = pickPrimary(sorted, context);
+      // Drop the entry that was actually chosen, not the one that happened to
+      // sort first: context can promote a candidate from further down, and
+      // slicing by position would then list the winner among its own
+      // alternates and drop a real alternative instead.
+      const alternatives = uniqueStrings(
+        sorted.filter((entry) => entry !== primary).map((entry) => entry.english),
+      );
       const isAmbiguous = alternatives.length > 0;
       if (isAmbiguous) {
         ambiguousTokenCount += 1;

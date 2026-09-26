@@ -14,6 +14,8 @@
   import RaceGlyph from './RaceGlyph.svelte';
 
   export let selectedRace: RaceName = 'Gek';
+  /** Sends a word to the phrasebook when its ambiguous reading is clicked. */
+  export let onLookup: (word: string) => void = () => undefined;
   /** Bound to the router so the text survives real page navigations. */
   export let sourceText = '';
   export let direction: TranslationDirection = 'alien-to-english';
@@ -50,7 +52,7 @@
       sourceText = seed.text;
       direction = seed.direction;
     } else {
-      sourceText = createExample(selectedRace, false);
+      sourceText = createExample(selectedRace, false, direction);
     }
     handoffReady = true;
     translation = translateNow();
@@ -80,10 +82,49 @@
     return [...chosen, ...fallback].slice(0, 4);
   }
 
-  function createExample(race: RaceName, randomize: boolean) {
-    const entries = pickSignalEntries(translationEngine.getEntries(race));
-    if (randomize) entries.sort(() => Math.random() - 0.5);
-    return entries.map((entry) => entry.surface).join(' ');
+  function createExample(race: RaceName, randomize: boolean, nextDirection: TranslationDirection) {
+    const entries = translationEngine.getEntries(race);
+    const picked = randomize
+      ? pickRandomEntries(entries, 3 + Math.floor(Math.random() * 2))
+      : pickSignalEntries(entries);
+    return picked.map((entry) => wordFor(entry, nextDirection)).join(' ');
+  }
+
+  /**
+   * Draws a few distinct words for the Random example button. Candidates are the
+   * better half of the lexicon by frequency, so the phrase stays on words a
+   * player is likely to recognise, while the draw itself is random enough that
+   * repeated clicks produce genuinely new sentences.
+   */
+  function pickRandomEntries(entries: AlienEntry[], count: number) {
+    const ranked = [...entries].sort(
+      (a, b) => b.frequency - a.frequency || a.sourceIndex - b.sourceIndex,
+    );
+    const pool = ranked.slice(0, Math.max(count, Math.ceil(ranked.length / 2)));
+    const chosen: AlienEntry[] = [];
+    const seenEnglish = new Set<string>();
+    const seenSurface = new Set<string>();
+
+    // Partial Fisher-Yates: splice from a working copy so picking four words
+    // costs four or five draws instead of shuffling the whole pool.
+    const working = [...pool];
+    while (chosen.length < count && working.length) {
+      const [entry] = working.splice(Math.floor(Math.random() * working.length), 1);
+      const english = entry.english.toLocaleLowerCase('en');
+      const surface = entry.surface.toLocaleLowerCase('en');
+      // Guard both sides: whichever one this direction will print, it must not
+      // repeat inside the sentence.
+      if (seenEnglish.has(english) || seenSurface.has(surface)) continue;
+      seenEnglish.add(english);
+      seenSurface.add(surface);
+      chosen.push(entry);
+    }
+    return chosen;
+  }
+
+  /** The side of an entry that this direction consumes as its input. */
+  function wordFor(entry: AlienEntry, nextDirection: TranslationDirection) {
+    return nextDirection === 'alien-to-english' ? entry.surface : entry.english;
   }
 
   function translateNow() {
@@ -144,7 +185,7 @@
     cancelAutoTranslate();
     isPending = false;
     direction = nextDirection;
-    sourceText = createExample(selectedRace, false);
+    sourceText = createExample(selectedRace, false, nextDirection);
     translation = translateNow();
   }
 
@@ -152,7 +193,7 @@
     cancelAutoTranslate();
     isPending = false;
     selectedRace = race;
-    sourceText = createExample(race, false);
+    sourceText = createExample(race, false, direction);
     translation = translateNow();
   }
 
@@ -176,7 +217,7 @@
   function randomExample() {
     cancelAutoTranslate();
     isPending = false;
-    sourceText = createExample(selectedRace, true);
+    sourceText = createExample(selectedRace, true, direction);
     translation = translateNow();
   }
 
@@ -368,11 +409,20 @@
           {:else if translation}
             <div class="result-copy" class:stale={isPending}>
               {#each translation.segments as segment}
-                <span
-                  class:unknown={segment.status === 'unknown'}
-                  class:ambiguous={segment.status === 'ambiguous'}
-                  title={segment.alternatives.length ? `Alternatives: ${segment.alternatives.join(', ')}` : undefined}
-                >{segment.output}</span>
+                {#if segment.status === 'ambiguous'}
+                  <button
+                    type="button"
+                    class="ambiguous-lookup"
+                    onclick={() => onLookup(segment.source)}
+                    title={segment.alternatives.length ? `Alternatives: ${segment.alternatives.join(', ')}` : undefined}
+                    aria-label={`Look up "${segment.source}" in the phrasebook`}
+                  >{segment.output}</button>
+                {:else}
+                  <span
+                    class:unknown={segment.status === 'unknown'}
+                    title={segment.alternatives.length ? `Alternatives: ${segment.alternatives.join(', ')}` : undefined}
+                  >{segment.output}</span>
+                {/if}
               {/each}
             </div>
           {:else}
@@ -1035,9 +1085,33 @@
     text-underline-offset: 4px;
   }
 
-  .result-copy span.ambiguous {
+  /* Was a span; now a button so the reading can be looked up. It shows the
+     chosen meaning but looks up the SOURCE word, because that is the token
+     that actually carries several meanings: searching the phrasebook by the
+     surface lists every row sharing it, so the alternates appear side by side.
+     Kept inline so it sits on the same baseline as the surrounding words, and
+     styled to the previous yellow dotted underline so the meaning is
+     unchanged. */
+  .result-copy .ambiguous-lookup {
+    display: inline;
+    margin: 0;
+    padding: 0;
+    border: 0;
     color: #f5d479;
+    background: none;
+    font: inherit;
     border-bottom: 1px dotted rgba(245, 212, 121, .55);
+    cursor: pointer;
+  }
+
+  .result-copy .ambiguous-lookup:hover {
+    color: #ffe9a3;
+    border-bottom-style: solid;
+  }
+
+  .result-copy .ambiguous-lookup:focus-visible {
+    outline: 2px solid #f5d479;
+    outline-offset: 2px;
   }
 
   .empty-output {
