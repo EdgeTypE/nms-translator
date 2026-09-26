@@ -57,22 +57,6 @@ export const PAGES = [
     ],
   },
   {
-    id: 'data',
-    dir: 'archive',
-    nav: 'Archive Data',
-    title: "Archive Data & Provenance — No Man's Sky Translator",
-    description:
-      'How the No Man\'s Sky alien lexicon is extracted: source manifests, checksums, language distribution and 100% local browser processing.',
-    h1: 'No Man’s Sky Translator — Archive Data',
-    intro:
-      'Every translation is generated offline from the game’s own speech table. This page documents the exact sources, checksums and language distribution behind the lexicon.',
-    keywords: [
-      'No Man\'s Sky alien language data',
-      'speech table extraction',
-      'NMS lexicon provenance',
-    ],
-  },
-  {
     id: 'npc',
     dir: 'npc',
     nav: 'NPC Dialogue',

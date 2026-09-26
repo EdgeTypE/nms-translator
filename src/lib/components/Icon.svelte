@@ -9,7 +9,6 @@
     | 'clipboard'
     | 'compass'
     | 'copy'
-    | 'database'
     | 'external'
     | 'filter'
     | 'info'
@@ -48,9 +47,6 @@
   {:else if name === 'book'}
     <path d="M4 5.5A3.5 3.5 0 0 1 7.5 2H11v17H7.5A3.5 3.5 0 0 0 4 22Z" />
     <path d="M20 5.5A3.5 3.5 0 0 0 16.5 2H13v17h3.5A3.5 3.5 0 0 1 20 22Z" />
-  {:else if name === 'database'}
-    <ellipse cx="12" cy="5" rx="8" ry="3" />
-    <path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6" />
   {:else if name === 'copy'}
     <rect x="8" y="8" width="12" height="12" rx="1" />
     <path d="M16 8V4H4v12h4" />

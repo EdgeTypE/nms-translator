@@ -91,4 +91,4 @@ export interface TranslationResult {
   ambiguousMatches: AmbiguousMatch[];
 }
 
-export type ViewId = 'npc' | 'translate' | 'phrasebook' | 'data';
+export type ViewId = 'npc' | 'translate' | 'phrasebook';

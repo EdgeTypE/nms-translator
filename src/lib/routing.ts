@@ -4,11 +4,10 @@ import type { RaceName, ViewId } from './types';
 export const VIEW_PATHS: Record<ViewId, string> = {
   translate: '',
   phrasebook: 'phrasebook',
-  data: 'archive',
   npc: 'npc',
 };
 
-export const VIEWS: ViewId[] = ['translate', 'phrasebook', 'data', 'npc'];
+export const VIEWS: ViewId[] = ['translate', 'phrasebook', 'npc'];
 
 const BASE = import.meta.env.BASE_URL.replace(/\/+$/, '');
 
@@ -28,7 +27,12 @@ function normalise(pathname: string): string {
 }
 
 /** Resolves the view for a given location (pathname + search). */
-export function resolveView(location: { pathname: string; search: string }): ViewId {
+/**
+ * Resolves the view for a given location, or null when the path is not a real
+ * route. Unknown paths must NOT silently fall back to the translator: the site
+ * ships real static documents, so an unmatched path is a genuine 404.
+ */
+export function resolveView(location: { pathname: string; search: string }): ViewId | null {
   const path = normalise(location.pathname);
 
   for (const view of VIEWS) {
@@ -41,7 +45,7 @@ export function resolveView(location: { pathname: string; search: string }): Vie
   const legacy = new URLSearchParams(location.search).get('view');
   if (legacy && (VIEWS as string[]).includes(legacy)) return legacy as ViewId;
 
-  return 'translate';
+  return null;
 }
 
 /** Public path for a view, always with a trailing slash. */

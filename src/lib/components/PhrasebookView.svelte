@@ -212,6 +212,43 @@
         {/if}
       </footer>
     </div>
+
+    <section class="distribution" aria-labelledby="distribution-title">
+      <header class="distribution-header">
+        <div>
+          <span class="eyebrow">Language matrix</span>
+          <h2 id="distribution-title">Species Distribution</h2>
+        </div>
+        <span class="panel-index">A / {alienData.races.length}</span>
+      </header>
+
+      <div class="species-grid">
+        {#each alienData.races as race, index}
+          <button
+            type="button"
+            class:active={selectedRace === race.name}
+            style={`--race-accent: ${RACE_META[race.name].accent}`}
+            onclick={() => (selectedRace = race.name)}
+            aria-label={`Show ${race.name} entries`}
+          >
+            <div class="species-topline">
+              <span class="species-icon"><RaceGlyph race={race.name} size={47} /></span>
+              <span class="species-count">{translationEngine.getRaceCount(race.name).toLocaleString('en')}</span>
+            </div>
+            <h3>{race.name}</h3>
+            <small>{RACE_META[race.name].designation}</small>
+            <p>{RACE_META[race.name].description}</p>
+            <div class="species-meter">
+              <i style={`width: ${(translationEngine.getRaceCount(race.name) / 1200) * 100}%`}></i>
+            </div>
+            <div class="species-footer">
+              <span>MODEL / {RACE_META[race.name].speechModel}</span>
+              <span>0{index + 1}</span>
+            </div>
+          </button>
+        {/each}
+      </div>
+    </section>
   </div>
 </section>
 
@@ -221,6 +258,154 @@
     min-height: calc(100svh - 114px);
     margin: 0 auto;
     padding: 42px clamp(28px, 4vw, 64px) 30px;
+  }
+
+  /* Species distribution — moved here from the removed Archive Data page.
+     It is the third child of the 2-column .phrasebook-frame grid, so it must
+     span both columns instead of collapsing into the 230px species sidebar. */
+  .distribution {
+    grid-column: 1 / -1;
+    margin-top: 10px;
+    border: 1px solid rgba(112, 193, 209, .18);
+    background: rgba(4, 10, 23, .63);
+  }
+
+  .distribution-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 69px;
+    padding: 13px 20px;
+    border-bottom: 1px solid rgba(112, 193, 209, .17);
+  }
+
+  .distribution-header h2 {
+    margin-top: 5px;
+    color: var(--text-primary);
+    font-size: 1rem;
+    font-weight: 300;
+    letter-spacing: .11em;
+    text-transform: uppercase;
+  }
+
+  .panel-index {
+    color: var(--signal-yellow);
+    font-family: var(--font-body);
+    font-size: .64rem;
+    letter-spacing: .14em;
+  }
+
+  .species-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .species-grid > button {
+    position: relative;
+    min-width: 0;
+    padding: 20px 16px 15px;
+    border: 0;
+    border-right: 1px solid rgba(112, 193, 209, .11);
+    color: inherit;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--race-accent) 5%, transparent), transparent 45%);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: background 150ms ease;
+  }
+
+  .species-grid > button:last-child {
+    border-right: 0;
+  }
+
+  .species-grid > button:hover {
+    background: linear-gradient(180deg, color-mix(in srgb, var(--race-accent) 12%, transparent), rgba(255, 255, 255, .015) 55%);
+  }
+
+  .species-grid > button.active {
+    background: linear-gradient(180deg, color-mix(in srgb, var(--race-accent) 16%, transparent), rgba(255, 255, 255, .02) 55%);
+  }
+
+  .species-grid > button.active::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 2px;
+    background: var(--race-accent);
+    box-shadow: 0 0 8px var(--race-accent);
+  }
+
+  .species-topline {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+
+  .species-icon {
+    color: var(--race-accent);
+  }
+
+  .species-count {
+    color: var(--race-accent);
+    font-family: var(--font-body);
+    font-size: .62rem;
+    letter-spacing: .08em;
+  }
+
+  .species-grid h3 {
+    margin-top: 15px;
+    color: var(--text-primary);
+    font-size: .9rem;
+    font-weight: 400;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+  }
+
+  .species-grid button > small {
+    display: block;
+    margin-top: 4px;
+    color: var(--race-accent);
+    font-family: var(--font-body);
+    font-size: .62rem;
+    letter-spacing: .11em;
+  }
+
+  .species-grid p {
+    min-height: 54px;
+    margin-top: 12px;
+    color: var(--text-dim);
+    font-family: var(--font-body);
+    font-size: .6rem;
+    line-height: 1.5;
+  }
+
+  .species-meter {
+    position: relative;
+    display: block;
+    height: 3px;
+    margin-top: 12px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, .07);
+  }
+
+  .species-meter i {
+    position: absolute;
+    inset: 0 auto 0 0;
+    max-width: 100%;
+    background: var(--race-accent);
+    box-shadow: 0 0 7px var(--race-accent);
+  }
+
+  .species-footer {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 13px;
+    color: var(--text-dim);
+    font-family: var(--font-body);
+    font-size: .62rem;
+    letter-spacing: .08em;
   }
 
   h1,
@@ -864,6 +1049,18 @@
 
     .results-heading > span:last-child {
       display: none;
+    }
+
+    /* Distribution cards scroll horizontally on small screens. */
+    .distribution-header {
+      min-height: 58px;
+      padding: 10px 14px;
+    }
+
+    .species-grid {
+      grid-template-columns: repeat(5, 150px);
+      overflow-x: auto;
+      scrollbar-width: thin;
     }
   }
 </style>

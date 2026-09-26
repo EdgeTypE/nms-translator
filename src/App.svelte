@@ -4,7 +4,7 @@
   import PAGE_META from './lib/pages.json';
   import { loadSession, pathFor, resolveRace, resolveView, saveSession } from './lib/routing';
   import type { RaceName, ViewId } from './lib/types';
-  import DataView from './lib/components/DataView.svelte';
+  import Icon from './lib/components/Icon.svelte';
   import NpcView from './lib/components/NpcView.svelte';
   import PhrasebookView from './lib/components/PhrasebookView.svelte';
   import SpaceBackdrop from './lib/components/SpaceBackdrop.svelte';
@@ -23,11 +23,12 @@
   let draftText = '';
   let draftDirection: 'alien-to-english' | 'english-to-alien' = 'alien-to-english';
 
+  let notFound = false;
+
   onMount(() => {
     const initial = resolveView(window.location);
     const session = loadSession();
 
-    activeView = initial;
     selectedRace =
       resolveRace(session?.race ?? null, RACE_NAMES) ??
       resolveRace(new URLSearchParams(window.location.search).get('race'), RACE_NAMES) ??
@@ -37,18 +38,34 @@
     if (typeof session?.text === 'string') draftText = session.text;
     if (session?.direction) draftDirection = session.direction;
 
-    // Legacy ?view=/?race= links are redirected to their canonical path once.
     const params = new URLSearchParams(window.location.search);
+
+    if (!initial) {
+      // No static document exists for this path — a genuine 404.
+      notFound = true;
+      locationReady = true;
+      return;
+    }
+
+    activeView = initial;
+
+    // Legacy ?view=/?race= links are redirected to their canonical path once.
     if (params.has('view') || params.has('race')) {
       window.history.replaceState(null, '', pathFor(activeView));
     }
 
     const onPopState = () => {
-      activeView = resolveView(window.location);
+      const next = resolveView(window.location);
+      if (!next) {
+        notFound = true;
+        return;
+      }
+      notFound = false;
+      activeView = next;
       const paramsNow = new URLSearchParams(window.location.search);
       const race = resolveRace(paramsNow.get('race'), RACE_NAMES);
       if (race) selectedRace = race;
-      syncHead(activeView);
+      syncHead(next);
     };
 
     window.addEventListener('popstate', onPopState);
@@ -56,6 +73,10 @@
 
     return () => window.removeEventListener('popstate', onPopState);
   });
+
+  // Note: GitHub Pages serves a real 404 status for unmatched paths before any
+  // JavaScript runs, because no document exists for them. The client only needs
+  // to render a sensible "not found" view instead of silently showing the app.
 
   // Keep the stored session in sync so a hard reload / real page navigation
   // restores the user's text, selected species and direction.
@@ -80,7 +101,8 @@
   }
 
   function navigate(view: ViewId) {
-    if (view === activeView) return;
+    if (view === activeView && !notFound) return;
+    notFound = false;
     activeView = view;
     window.history.pushState(null, '', pathFor(view));
     window.scrollTo(0, 0);
@@ -96,7 +118,23 @@
 
 <svelte:window onpointermove={handlePointerMove} onpointerleave={() => (cursorVisible = false)} />
 
-{#if activeView === 'npc'}
+{#if notFound}
+  <div class="app-shell">
+    <TopBar bind:activeView onNavigate={navigate} />
+    <main class="not-found">
+      <span class="eyebrow">Error / 404</span>
+      <h1>Signal not found</h1>
+      <p>
+        There is no page at <code>{typeof window === 'undefined' ? '' : window.location.pathname}</code>.
+        The translator and phrasebook are still online.
+      </p>
+      <button type="button" onclick={() => navigate('translate')}>
+        Back to translator
+        <Icon name="arrow-right" size={18} />
+      </button>
+    </main>
+  </div>
+{:else if activeView === 'npc'}
   <NpcView bind:selectedRace onExit={() => navigate('translate')} />
 {:else}
   <SpaceBackdrop />
@@ -121,10 +159,8 @@
               bind:sourceText={draftText}
               bind:direction={draftDirection}
             />
-          {:else if activeView === 'phrasebook'}
-            <PhrasebookView bind:selectedRace />
           {:else}
-            <DataView />
+            <PhrasebookView bind:selectedRace />
           {/if}
         </div>
       {/key}
@@ -143,3 +179,73 @@
     </footer>
   </div>
 {/if}
+
+<style>
+  .not-found {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    min-height: calc(100svh - 145px);
+    padding: 40px 24px;
+    text-align: center;
+  }
+
+  .not-found .eyebrow {
+    color: var(--signal-yellow);
+    font-family: var(--font-body);
+    font-size: .68rem;
+    font-weight: 600;
+    letter-spacing: .2em;
+    text-transform: uppercase;
+  }
+
+  .not-found h1 {
+    margin: 0;
+    color: var(--text-primary);
+    font-family: var(--font-heading);
+    font-size: clamp(1.8rem, 4vw, 2.8rem);
+    font-weight: 300;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+
+  .not-found p {
+    max-width: 34rem;
+    margin: 0;
+    color: var(--text-muted);
+    font-family: var(--font-body);
+    font-size: .9rem;
+    line-height: 1.6;
+  }
+
+  .not-found code {
+    color: var(--signal-cyan);
+    font-family: var(--font-body);
+    font-size: .85rem;
+  }
+
+  .not-found button {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 46px;
+    margin-top: 6px;
+    padding: 0 22px;
+    border: 0;
+    color: #0b1018;
+    background: var(--signal-yellow);
+    font: inherit;
+    font-size: .74rem;
+    font-weight: 700;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    cursor: pointer;
+    clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%, 10px 50%);
+  }
+
+  .not-found button:hover {
+    background: #ffe76c;
+  }
+</style>

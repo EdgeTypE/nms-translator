@@ -8,7 +8,6 @@ import { resolve } from 'node:path';
 const pageInputs = [
   resolve(import.meta.dirname, 'index.html'),
   resolve(import.meta.dirname, 'phrasebook/index.html'),
-  resolve(import.meta.dirname, 'archive/index.html'),
   resolve(import.meta.dirname, 'npc/index.html'),
 ];
 

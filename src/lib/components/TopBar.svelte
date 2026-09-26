@@ -10,11 +10,10 @@
   /** Set by the router; intercepts clicks for instant SPA navigation. */
   export let onNavigate: (view: ViewId) => void = () => undefined;
 
-  const navItems: Array<{ id: ViewId; label: string; icon: 'message' | 'translate' | 'book' | 'database' }> = [
+  const navItems: Array<{ id: ViewId; label: string; icon: 'message' | 'translate' | 'book' }> = [
     { id: 'npc', label: 'NPC Dialogue', icon: 'message' },
     { id: 'translate', label: 'Translate', icon: 'translate' },
     { id: 'phrasebook', label: 'Phrasebook', icon: 'book' },
-    { id: 'data', label: 'Archive Data', icon: 'database' },
   ];
 
   const lastSync = formatArchiveDate(alienData.generatedUtc);
