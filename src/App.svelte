@@ -138,14 +138,6 @@
   <NpcView bind:selectedRace onExit={() => navigate('translate')} />
 {:else}
   <SpaceBackdrop />
-  <div
-    class="cursor-reticle"
-    class:visible={cursorVisible}
-    style={`left: ${cursorX}px; top: ${cursorY}px`}
-    aria-hidden="true"
-  >
-    <i></i>
-  </div>
 
   <div class="app-shell">
     <TopBar bind:activeView onNavigate={navigate} />
@@ -178,6 +170,19 @@
       <span>NO REMOTE API / BROWSER LOCAL</span>
     </footer>
   </div>
+{/if}
+
+<!-- NPC mode draws its own reticle, so the global one is skipped there. It is
+     hoisted out of the branches above so the 404 view keeps a pointer too
+     (the native cursor is suppressed site-wide, so a missing reticle here
+     would leave that page with no cursor at all). -->
+{#if activeView !== 'npc'}
+  <div
+    class="cursor-reticle"
+    class:visible={cursorVisible}
+    style={`transform: translate(${cursorX}px, ${cursorY}px)`}
+    aria-hidden="true"
+  ></div>
 {/if}
 
 <style>

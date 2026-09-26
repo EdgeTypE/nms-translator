@@ -265,6 +265,10 @@
      span both columns instead of collapsing into the 230px species sidebar. */
   .distribution {
     grid-column: 1 / -1;
+    /* Grid items default to min-width:auto, which would let the 5 fixed-width
+       cards stretch this panel past the viewport and kill its own
+       overflow-x: auto. min-width:0 lets the mobile scroll strip engage. */
+    min-width: 0;
     margin-top: 10px;
     border: 1px solid rgba(112, 193, 209, .18);
     background: rgba(4, 10, 23, .63);
@@ -291,7 +295,7 @@
   .panel-index {
     color: var(--signal-yellow);
     font-family: var(--font-body);
-    font-size: .64rem;
+    font-size: .78rem;
     letter-spacing: .14em;
   }
 
@@ -350,14 +354,14 @@
   .species-count {
     color: var(--race-accent);
     font-family: var(--font-body);
-    font-size: .62rem;
+    font-size: .72rem;
     letter-spacing: .08em;
   }
 
   .species-grid h3 {
     margin-top: 15px;
     color: var(--text-primary);
-    font-size: .9rem;
+    font-size: 1.04rem;
     font-weight: 400;
     letter-spacing: .07em;
     text-transform: uppercase;
@@ -368,7 +372,7 @@
     margin-top: 4px;
     color: var(--race-accent);
     font-family: var(--font-body);
-    font-size: .62rem;
+    font-size: .72rem;
     letter-spacing: .11em;
   }
 
@@ -377,7 +381,7 @@
     margin-top: 12px;
     color: var(--text-dim);
     font-family: var(--font-body);
-    font-size: .6rem;
+    font-size: .7rem;
     line-height: 1.5;
   }
 
@@ -404,7 +408,7 @@
     margin-top: 13px;
     color: var(--text-dim);
     font-family: var(--font-body);
-    font-size: .62rem;
+    font-size: .72rem;
     letter-spacing: .08em;
   }
 
@@ -417,7 +421,7 @@
   .section-title {
     color: var(--text-dim);
     font-family: var(--font-body);
-    font-size: .68rem;
+    font-size: .8rem;
     font-weight: 600;
     letter-spacing: .2em;
     text-transform: uppercase;
@@ -444,7 +448,7 @@
   .page-header p {
     margin-top: 6px;
     color: var(--text-muted);
-    font-size: .83rem;
+    font-size: .96rem;
     letter-spacing: .04em;
   }
 
@@ -472,7 +476,7 @@
     grid-column: 1 / -1;
     color: var(--text-dim);
     font-family: var(--font-body);
-    font-size: .64rem;
+    font-size: .8rem;
     font-style: normal;
     letter-spacing: .14em;
     text-transform: uppercase;
@@ -578,7 +582,7 @@
   }
 
   .species-filter strong {
-    font-size: .82rem;
+    font-size: .94rem;
     font-weight: 400;
     letter-spacing: .04em;
   }
@@ -587,7 +591,7 @@
     margin-top: 4px;
     color: var(--text-dim);
     font-family: var(--font-body);
-    font-size: .5rem;
+    font-size: .78rem;
     letter-spacing: .09em;
   }
 
@@ -642,11 +646,11 @@
     color: var(--text-primary);
     background: transparent;
     font: inherit;
-    font-size: .8rem;
+    font-size: .92rem;
   }
 
   .search-box input::placeholder {
-    color: rgba(159, 180, 194, .4);
+    color: var(--text-dim);
   }
 
   .search-box button {
@@ -680,7 +684,7 @@
     margin-left: 9px;
     color: var(--text-dim);
     font-family: var(--font-body);
-    font-size: .55rem;
+    font-size: .78rem;
     letter-spacing: .12em;
     text-transform: uppercase;
   }
@@ -695,7 +699,7 @@
     color: var(--text-primary);
     background: transparent;
     font: inherit;
-    font-size: .7rem;
+    font-size: .82rem;
     letter-spacing: .08em;
     text-transform: uppercase;
     cursor: pointer;
@@ -721,14 +725,14 @@
     border-bottom: 1px solid rgba(112, 193, 209, .11);
     color: var(--text-dim);
     font-family: var(--font-body);
-    font-size: .56rem;
+    font-size: .78rem;
     letter-spacing: .1em;
     text-transform: uppercase;
   }
 
   .results-heading strong {
     color: var(--signal-yellow);
-    font-size: .7rem;
+    font-size: .84rem;
   }
 
   .catalogue-table-wrap {
@@ -755,12 +759,12 @@
     position: sticky;
     z-index: 2;
     top: 0;
-    height: 37px;
+    height: 44px;
     padding: 0 12px;
     color: var(--text-dim);
     background: rgba(5, 12, 25, .97);
     font-family: var(--font-body);
-    font-size: .64rem;
+    font-size: .78rem;
     font-weight: 500;
     letter-spacing: .13em;
     text-transform: uppercase;
@@ -773,10 +777,10 @@
   th:nth-child(5) { width: 44px; }
 
   td {
-    height: 54px;
+    height: 64px;
     padding: 7px 12px;
     color: var(--text-muted);
-    font-size: .73rem;
+    font-size: .85rem;
   }
 
   tbody tr {
@@ -793,9 +797,8 @@
     margin-top: 2px;
     overflow: hidden;
     color: var(--text-dim);
-    opacity: .75;
     font-family: var(--font-body);
-    font-size: .6rem;
+    font-size: .76rem;
     letter-spacing: .05em;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -825,25 +828,25 @@
 
   .english-value {
     color: var(--text-primary);
-    font-size: .8rem;
+    font-size: .92rem;
   }
 
   .alien-value {
     color: var(--signal-cyan);
     font-family: var(--font-heading);
-    font-size: .86rem;
+    font-size: .98rem;
   }
 
   .category-chip {
     display: inline-flex;
     align-items: center;
-    min-height: 21px;
-    padding: 0 7px;
+    min-height: 24px;
+    padding: 0 8px;
     border: 1px solid rgba(93, 212, 228, .2);
     color: #7fdbe8;
     background: rgba(35, 153, 170, .08);
     font-family: var(--font-body);
-    font-size: .49rem;
+    font-size: .76rem;
     letter-spacing: .1em;
   }
 
@@ -906,7 +909,7 @@
 
   .empty-row strong {
     color: var(--text-muted);
-    font-size: .78rem;
+    font-size: .88rem;
     font-weight: 400;
     letter-spacing: .1em;
     text-transform: uppercase;
@@ -916,7 +919,7 @@
     margin-top: 7px;
     color: var(--text-dim);
     font-family: var(--font-body);
-    font-size: .65rem;
+    font-size: .76rem;
   }
 
   .catalogue-footer {
@@ -928,7 +931,7 @@
     border-top: 1px solid rgba(112, 193, 209, .15);
     color: var(--text-dim);
     font-family: var(--font-body);
-    font-size: .58rem;
+    font-size: .78rem;
     letter-spacing: .1em;
     text-transform: uppercase;
   }
@@ -943,7 +946,7 @@
     color: var(--text-muted);
     background: rgba(8, 19, 35, .6);
     font: inherit;
-    font-size: .56rem;
+    font-size: .78rem;
     letter-spacing: .1em;
     text-transform: uppercase;
     cursor: pointer;
@@ -1012,7 +1015,7 @@
     }
 
     .species-filter strong {
-      font-size: .65rem;
+      font-size: .76rem;
     }
   }
 
@@ -1043,9 +1046,33 @@
       overflow-x: auto;
     }
 
+    /* The table is table-layout:fixed, so the percentage split starves the
+       Freq. column once the header type is this large. Give every column an
+       explicit share that fits the real text instead of the percentages. */
     table {
-      min-width: 560px;
+      min-width: 640px;
     }
+
+    th,
+    td {
+      padding-right: 9px;
+      padding-left: 9px;
+    }
+
+    th:nth-child(1),
+    td:nth-child(1) { width: 30%; }
+
+    th:nth-child(2),
+    td:nth-child(2) { width: 30%; }
+
+    th:nth-child(3),
+    td:nth-child(3) { width: 18%; }
+
+    th:nth-child(4),
+    td:nth-child(4) { width: 12%; }
+
+    th:nth-child(5),
+    td:nth-child(5) { width: 48px; }
 
     .results-heading > span:last-child {
       display: none;

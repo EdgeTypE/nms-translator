@@ -261,55 +261,49 @@ select {
   background: rgba(255, 216, 75, .45);
 }
 
+/* Custom pointer. Deliberately pixel-identical to the NPC dialogue reticle in
+   NpcView.svelte so the pointer does not change shape when moving between the
+   two pages: 2px white ring, drop shadow, solid centre dot, no crosshair. */
 .cursor-reticle {
   position: fixed;
+  left: 0;
+  top: 0;
   z-index: 90;
   width: 34px;
   height: 34px;
-  border: 1px solid rgba(239, 249, 251, .7);
+  margin: -17px 0 0 -17px;
+  border: 2px solid rgba(255, 255, 255, .85);
   border-radius: 50%;
+  box-shadow: 0 0 6px rgba(0, 0, 0, .5);
   pointer-events: none;
   opacity: 0;
-  transform: translate(-50%, -50%) scale(.8);
-  transition: opacity 120ms ease, transform 80ms linear;
-  mix-blend-mode: screen;
+  transition: opacity .12s ease;
 }
 
-.cursor-reticle::before,
 .cursor-reticle::after {
   content: '';
   position: absolute;
-  background: rgba(239, 249, 251, .7);
-}
-
-.cursor-reticle::before {
-  left: 50%;
-  top: -4px;
-  width: 1px;
-  height: 5px;
-}
-
-.cursor-reticle::after {
-  left: -4px;
-  top: 50%;
-  width: 5px;
-  height: 1px;
-}
-
-.cursor-reticle i {
-  position: absolute;
   left: 50%;
   top: 50%;
-  width: 3px;
-  height: 3px;
+  width: 4px;
+  height: 4px;
+  margin: -2px;
   border-radius: 50%;
   background: #fff;
-  transform: translate(-50%, -50%);
 }
 
 .cursor-reticle.visible {
-  opacity: .72;
-  transform: translate(-50%, -50%) scale(1);
+  opacity: 1;
+}
+
+/* Suppress the native pointer only where the reticle is actually drawn, so no
+   view is ever left without a cursor. Exact complement of the hide rules
+   below: coarse pointer, narrow viewport, or reduced motion. */
+@media (pointer: fine) and (min-width: 901px) and (prefers-reduced-motion: no-preference) {
+  body,
+  body * {
+    cursor: none !important;
+  }
 }
 
 /* Entry animation: opacity only, no transform/filter. A translate+blur here
