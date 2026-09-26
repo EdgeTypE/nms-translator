@@ -15,6 +15,7 @@
     | 'info'
     | 'keyboard'
     | 'lock'
+    | 'message'
     | 'refresh'
     | 'search'
     | 'shuffle'
@@ -101,6 +102,9 @@
   {:else if name === 'keyboard'}
     <rect x="2" y="5" width="20" height="14" rx="2" />
     <path d="M6 9h.1M10 9h.1M14 9h.1M18 9h.1M7 13h.1M11 13h.1M15 13h2M7 16h10" />
+  {:else if name === 'message'}
+    <path d="M20 15a3 3 0 0 1-3 3H9l-5 3V6a3 3 0 0 1 3-3h10a3 3 0 0 1 3 3Z" />
+    <path d="M8 9h8M8 13h5" />
   {/if}
 </svg>
 

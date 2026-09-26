@@ -1,7 +1,9 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
+  import { get } from 'svelte/store';
   import { alienData, translationEngine } from '../data';
   import { RACE_META } from '../races';
+  import { conversationDraft } from '../stores/handoff';
   import type {
     RaceName,
     TranslationDirection,
@@ -13,13 +15,19 @@
 
   export let selectedRace: RaceName = 'Gek';
 
+  /** Idle time (ms) after the last keystroke before live translation fires. */
+  const AUTO_TRANSLATE_DELAY = 400;
+
   let direction: TranslationDirection = 'alien-to-english';
   let sourceText = '';
   let translation: TranslationResult | null = null;
   let isTranslating = false;
+  let isPending = false;
   let copied = false;
   let translationTimer: number | undefined;
+  let autoTranslateTimer: number | undefined;
   let copyTimer: number | undefined;
+  let handoffReady = false;
 
   $: raceMeta = RACE_META[selectedRace];
   $: raceEntries = translationEngine.getEntries(selectedRace);
@@ -28,14 +36,26 @@
   $: sourceLanguage = direction === 'alien-to-english' ? selectedRace : 'English';
   $: targetLanguage = direction === 'alien-to-english' ? 'English' : selectedRace;
   $: matchPercent = translation?.coverage ?? 0;
+  // Keep the shared conversation buffer in sync once this view is live.
+  // The guard stops the first reactive pass (which runs before onMount) from
+  // clobbering the store with the empty initial value.
+  $: if (handoffReady) conversationDraft.set({ text: sourceText, direction });
 
   onMount(() => {
-    sourceText = createExample(selectedRace, false);
+    const seed = get(conversationDraft);
+    if (seed.text.trim()) {
+      sourceText = seed.text;
+      direction = seed.direction;
+    } else {
+      sourceText = createExample(selectedRace, false);
+    }
+    handoffReady = true;
     translation = translateNow();
   });
 
   onDestroy(() => {
     if (translationTimer) window.clearTimeout(translationTimer);
+    if (autoTranslateTimer) window.clearTimeout(autoTranslateTimer);
     if (copyTimer) window.clearTimeout(copyTimer);
   });
 
@@ -68,9 +88,43 @@
     return translationEngine.translate(sourceText, direction, selectedRace);
   }
 
+  function cancelAutoTranslate() {
+    if (autoTranslateTimer) {
+      window.clearTimeout(autoTranslateTimer);
+      autoTranslateTimer = undefined;
+    }
+  }
+
+  /**
+   * Live translation. The previous result stays on screen while the user
+   * types (like Google Translate); only a subtle scan line hints that an
+   * update is queued. The full "decoding" animation is reserved for the
+   * explicit Translate button / Ctrl+Enter action.
+   */
+  function handleInput() {
+    if (!sourceText.trim()) {
+      cancelAutoTranslate();
+      translation = null;
+      isPending = false;
+      isTranslating = false;
+      return;
+    }
+
+    isPending = true;
+    cancelAutoTranslate();
+    autoTranslateTimer = window.setTimeout(() => {
+      autoTranslateTimer = undefined;
+      translation = translateNow();
+      isPending = false;
+    }, AUTO_TRANSLATE_DELAY);
+  }
+
   function requestTranslation() {
+    cancelAutoTranslate();
+    isPending = false;
     if (!sourceText.trim()) {
       translation = null;
+      isTranslating = false;
       return;
     }
 
@@ -82,24 +136,26 @@
     }, 180);
   }
 
-  function handleInput() {
-    translation = null;
-  }
-
   function setDirection(nextDirection: TranslationDirection) {
     if (direction === nextDirection) return;
+    cancelAutoTranslate();
+    isPending = false;
     direction = nextDirection;
     sourceText = createExample(selectedRace, false);
     translation = translateNow();
   }
 
   function selectRace(race: RaceName) {
+    cancelAutoTranslate();
+    isPending = false;
     selectedRace = race;
     sourceText = createExample(race, false);
     translation = translateNow();
   }
 
   function swapLanguages() {
+    cancelAutoTranslate();
+    isPending = false;
     const carriedText = translation?.output || sourceText;
     direction = direction === 'alien-to-english' ? 'english-to-alien' : 'alien-to-english';
     sourceText = carriedText;
@@ -107,16 +163,23 @@
   }
 
   function clearAll() {
+    cancelAutoTranslate();
+    isPending = false;
     sourceText = '';
     translation = null;
+    isTranslating = false;
   }
 
   function randomExample() {
+    cancelAutoTranslate();
+    isPending = false;
     sourceText = createExample(selectedRace, true);
     translation = translateNow();
   }
 
   function useSignal(entry: AlienEntry) {
+    cancelAutoTranslate();
+    isPending = false;
     sourceText = direction === 'alien-to-english' ? entry.surface : entry.english;
     translation = translateNow();
   }
@@ -288,14 +351,19 @@
           <span class="language-code output-code">{targetLanguage === 'English' ? 'ENG' : selectedRace.slice(0, 3).toUpperCase()}</span>
         </header>
 
-        <div class="output-wrap" aria-live="polite" aria-busy={isTranslating}>
+        <div
+          class="output-wrap"
+          class:is-pending={isPending}
+          aria-live="polite"
+          aria-busy={isTranslating || isPending}
+        >
           {#if isTranslating}
             <div class="decoding-state">
               <span></span><span></span><span></span><span></span>
               <small>Decoding signal</small>
             </div>
           {:else if translation}
-            <div class="result-copy">
+            <div class="result-copy" class:stale={isPending}>
               {#each translation.segments as segment}
                 <span
                   class:unknown={segment.status === 'unknown'}
@@ -311,6 +379,7 @@
               <small>Enter a phrase, then initiate the decoder.</small>
             </div>
           {/if}
+          <span class="pending-scan" aria-hidden="true"></span>
         </div>
 
         <footer>
@@ -400,7 +469,7 @@
     display: block;
     color: var(--text-dim);
     font-family: var(--font-body);
-    font-size: .62rem;
+    font-size: .68rem;
     font-weight: 600;
     letter-spacing: .2em;
     text-transform: uppercase;
@@ -481,7 +550,7 @@
   .race-heading > span:last-child {
     color: var(--text-dim);
     font-family: var(--font-body);
-    font-size: .58rem;
+    font-size: .66rem;
     letter-spacing: .12em;
     text-transform: uppercase;
   }
@@ -572,7 +641,7 @@
     margin-top: 3px;
     color: var(--text-dim);
     font-family: var(--font-body);
-    font-size: .5rem;
+    font-size: .66rem;
     letter-spacing: .14em;
   }
 
@@ -614,7 +683,7 @@
     padding: 0 3px 8px;
     color: var(--text-dim);
     font-family: var(--font-body);
-    font-size: .58rem;
+    font-size: .66rem;
     letter-spacing: .16em;
     text-transform: uppercase;
   }
@@ -701,7 +770,7 @@
   .channel-state small {
     color: var(--text-dim);
     font-family: var(--font-body);
-    font-size: .53rem;
+    font-size: .66rem;
     letter-spacing: .15em;
     text-transform: uppercase;
   }
@@ -780,7 +849,7 @@
   .translation-panel header small {
     color: var(--text-dim);
     font-family: var(--font-body);
-    font-size: .53rem;
+    font-size: .66rem;
     letter-spacing: .15em;
     text-transform: uppercase;
   }
@@ -863,7 +932,7 @@
     border-top: 1px solid rgba(116, 196, 212, .12);
     color: var(--text-dim);
     font-family: var(--font-body);
-    font-size: .56rem;
+    font-size: .66rem;
     letter-spacing: .1em;
     text-transform: uppercase;
   }
@@ -907,20 +976,54 @@
   }
 
   .output-wrap {
+    position: relative;
     display: flex;
     align-items: center;
+    justify-content: flex-start;
     min-height: 210px;
     padding: 24px 25px;
     overflow: auto;
   }
 
+  /* Lightweight "queued" hint: keeps the previous result readable. */
+  .pending-scan {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 2px;
+    opacity: 0;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      var(--signal-cyan) 45%,
+      var(--signal-yellow) 55%,
+      transparent 100%
+    );
+    background-size: 220% 100%;
+    pointer-events: none;
+    transition: opacity .18s ease;
+  }
+
+  .output-wrap.is-pending .pending-scan {
+    opacity: .85;
+    animation: pending-sweep 1.15s linear infinite;
+  }
+
   .result-copy {
+    align-self: flex-start;
+    max-width: 100%;
     color: var(--text-primary);
     font-family: var(--font-heading);
     font-size: clamp(1.2rem, 1.8vw, 1.75rem);
     font-weight: 300;
     line-height: 1.55;
     letter-spacing: .025em;
+    transition: opacity .18s ease;
+  }
+
+  .result-copy.stale {
+    opacity: .58;
   }
 
   .result-copy span.unknown {
@@ -1182,6 +1285,11 @@
   @keyframes decode {
     from { transform: scaleY(.35); opacity: .35; }
     to { transform: scaleY(1); opacity: 1; }
+  }
+
+  @keyframes pending-sweep {
+    from { background-position: 220% 0; }
+    to { background-position: -120% 0; }
   }
 
   @media (max-width: 1180px) {

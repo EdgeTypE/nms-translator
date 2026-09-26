@@ -244,7 +244,7 @@
   .eyebrow {
     color: var(--text-dim);
     font-family: var(--font-body);
-    font-size: .62rem;
+    font-size: .68rem;
     font-weight: 600;
     letter-spacing: .2em;
     text-transform: uppercase;
@@ -363,7 +363,7 @@
   .metric-copy em {
     color: var(--text-dim);
     font-family: var(--font-body);
-    font-size: .52rem;
+    font-size: .64rem;
     font-style: normal;
     letter-spacing: .12em;
     text-transform: uppercase;
@@ -480,7 +480,7 @@
     margin-top: 4px;
     color: var(--race-accent);
     font-family: var(--font-body);
-    font-size: .48rem;
+    font-size: .62rem;
     letter-spacing: .11em;
   }
 
@@ -520,7 +520,7 @@
     margin-top: 13px;
     color: var(--text-dim);
     font-family: var(--font-body);
-    font-size: .45rem;
+    font-size: .62rem;
     letter-spacing: .08em;
   }
 
@@ -615,7 +615,7 @@
   .source-list small {
     color: var(--text-dim);
     font-family: var(--font-body);
-    font-size: .48rem;
+    font-size: .62rem;
     letter-spacing: .12em;
     text-transform: uppercase;
   }
@@ -644,7 +644,7 @@
   .source-list em {
     color: var(--signal-yellow);
     font-family: var(--font-body);
-    font-size: .48rem;
+    font-size: .62rem;
     font-style: normal;
     letter-spacing: .08em;
   }
@@ -666,7 +666,7 @@
   .generated-stamp small {
     color: var(--text-dim);
     font-family: var(--font-body);
-    font-size: .48rem;
+    font-size: .62rem;
     letter-spacing: .11em;
     text-transform: uppercase;
   }
@@ -726,7 +726,7 @@
     margin-top: 4px;
     color: var(--text-dim);
     font-family: var(--font-body);
-    font-size: .48rem;
+    font-size: .62rem;
     line-height: 1.35;
   }
 

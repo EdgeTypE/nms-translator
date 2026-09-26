@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@fontsource/rajdhani": "^5.3.0",
+    "@fontsource/roboto": "^5.3.0",
     "svelte": "^5.57.1"
   },
   "devDependencies": {

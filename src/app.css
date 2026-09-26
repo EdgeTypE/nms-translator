@@ -1,16 +1,110 @@
+/*
+ * Self-hosted fonts with a metric-matched fallback.
+ *
+ * Without this, the browser paints with Arial first and swaps to Rajdhani once
+ * the woff2 arrives, which reflows the whole HUD (cumulative layout shift).
+ * Rajdhani is ~17% narrower than Arial (0.468 vs 0.562 em average advance), so
+ * the fallback is scaled to 83.3% and its vertical metrics are overridden to
+ * Rajdhani's (upem 1000: ascent 930, descent 346, line-gap 0). The fallback
+ * then occupies the same box as the real font, so the swap is invisible.
+ */
+@font-face {
+  font-family: 'Rajdhani Fallback';
+  src: local('Arial'), local('Helvetica'), local('Liberation Sans');
+  size-adjust: 83.3%;
+  ascent-override: 93%;
+  descent-override: 34.6%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: 'Roboto Fallback';
+  src: local('Arial'), local('Helvetica'), local('Liberation Sans');
+  size-adjust: 100%;
+  ascent-override: 93%;
+  descent-override: 25%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: 'Rajdhani';
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url('/fonts/rajdhani-300.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Rajdhani';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/rajdhani-400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Rajdhani';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/rajdhani-500.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Rajdhani';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/rajdhani-600.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Rajdhani';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/rajdhani-700.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Roboto';
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url('/fonts/roboto-300.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Roboto';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/roboto-400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Roboto';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/roboto-500.woff2') format('woff2');
+}
+
 :root {
-  font-family: 'Rajdhani', 'Arial Narrow', Arial, sans-serif;
+  font-family: 'Rajdhani', 'Rajdhani Fallback', sans-serif;
   color: #edf5f7;
   background: #03060d;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
-  --font-heading: 'Rajdhani', 'Arial Narrow', Arial, sans-serif;
-  --font-body: 'Rajdhani', 'Arial Narrow', Arial, sans-serif;
+  --font-heading: 'Rajdhani', 'Rajdhani Fallback', sans-serif;
+  --font-body: 'Rajdhani', 'Rajdhani Fallback', sans-serif;
   --signal-yellow: #ffd83f;
   --signal-cyan: #69dbe9;
   --text-primary: #edf5f7;
   --text-muted: #a3b1bb;
-  --text-dim: #65747f;
+  /* Secondary labels: kept clearly readable on the dark HUD background
+     (~7.5:1 contrast) while staying visually below --text-primary. */
+  --text-dim: #93a7b4;
 }
 
 * {
@@ -30,6 +124,11 @@ body {
   margin: 0;
   overflow-x: hidden;
   background: #03060d;
+}
+
+body.npc-mode {
+  overflow: hidden;
+  background: #150a1f;
 }
 
 body::before {
@@ -117,10 +216,10 @@ select {
   min-height: 29px;
   padding: 0 32px;
   border-top: 1px solid rgba(112, 193, 209, .12);
-  color: rgba(118, 139, 151, .45);
+  color: rgba(147, 167, 180, .7);
   background: rgba(2, 6, 14, .78);
   font-family: var(--font-body);
-  font-size: .48rem;
+  font-size: .62rem;
   letter-spacing: .12em;
   text-transform: uppercase;
 }
@@ -142,11 +241,11 @@ select {
   min-width: 20px;
   height: 16px;
   padding: 0 4px;
-  border: 1px solid rgba(112, 193, 209, .16);
-  color: rgba(163, 186, 195, .6);
+  border: 1px solid rgba(112, 193, 209, .22);
+  color: rgba(180, 198, 208, .8);
   background: rgba(255, 255, 255, .02);
   font-family: var(--font-body);
-  font-size: .46rem;
+  font-size: .58rem;
   text-transform: uppercase;
 }
 
@@ -213,16 +312,15 @@ select {
   transform: translate(-50%, -50%) scale(1);
 }
 
+/* Entry animation: opacity only, no transform/filter. A translate+blur here
+   re-introduces visible movement on first paint, which stacks with the
+   font-swap reflow and reads as a layout shift. */
 @keyframes view-enter {
   from {
     opacity: 0;
-    transform: translateY(8px);
-    filter: blur(3px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
-    filter: blur(0);
   }
 }
 

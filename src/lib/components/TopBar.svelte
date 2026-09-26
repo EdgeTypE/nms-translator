@@ -1,17 +1,20 @@
 <script lang="ts">
+  import { alienData } from '../data';
+  import { formatArchiveDate, GAME_VERSION } from '../app-meta';
   import Icon from './Icon.svelte';
   import RaceGlyph from './RaceGlyph.svelte';
   import type { ViewId } from '../types';
 
   export let activeView: ViewId;
-  export let entryCount: number;
-  export let raceCount: number;
 
-  const navItems: Array<{ id: ViewId; label: string; icon: 'translate' | 'book' | 'database' }> = [
+  const navItems: Array<{ id: ViewId; label: string; icon: 'message' | 'translate' | 'book' | 'database' }> = [
+    { id: 'npc', label: 'NPC Dialogue', icon: 'message' },
     { id: 'translate', label: 'Translate', icon: 'translate' },
     { id: 'phrasebook', label: 'Phrasebook', icon: 'book' },
     { id: 'data', label: 'Archive Data', icon: 'database' },
   ];
+
+  const lastSync = formatArchiveDate(alienData.generatedUtc);
 </script>
 
 <header class="topbar">
@@ -46,27 +49,13 @@
   </div>
 </header>
 
-<div class="status-strip" aria-label="Archive summary">
-  <div class="resource-group">
-    <span class="resource">
-      <Icon name="terminal" size={15} />
-      <small>Lexicon</small>
-      <strong>{entryCount.toLocaleString('en')} entries</strong>
-    </span>
-    <span class="divider"></span>
-    <span class="resource">
-      <Icon name="compass" size={15} />
-      <small>Signals</small>
-      <strong>{raceCount} races</strong>
-    </span>
-    <span class="divider"></span>
-    <span class="resource">
-      <Icon name="lock" size={15} />
-      <small>Processing</small>
-      <strong>On device</strong>
-    </span>
-  </div>
-  <div class="build-label">NMT / LOCAL BUILD 1.0</div>
+<div class="status-strip" aria-label="Archive sync status">
+  <span class="last-sync">
+    <small>Last sync</small>
+    <em>{lastSync}</em>
+    <i></i>
+    <em>{GAME_VERSION}</em>
+  </span>
 </div>
 
 <style>
@@ -243,51 +232,40 @@
     z-index: 19;
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-end;
     min-height: 30px;
-    padding: 0 32px 0 118px;
+    padding: 0 32px;
     border-bottom: 1px solid rgba(111, 203, 219, .2);
-    background: linear-gradient(90deg, rgba(36, 170, 196, .34), rgba(31, 120, 143, .12) 34%, rgba(4, 9, 20, .5));
+    background: linear-gradient(90deg, rgba(16, 68, 82, .34), rgba(5, 12, 24, .55) 60%, rgba(4, 9, 20, .62));
     font-family: var(--font-body);
   }
 
-  .resource-group {
-    display: flex;
-    align-items: center;
-    height: 100%;
-  }
-
-  .resource {
+  .last-sync {
     display: inline-flex;
     align-items: center;
-    gap: 7px;
-    color: #061019;
+    gap: 9px;
     text-transform: uppercase;
   }
 
-  .resource small {
-    font-size: .57rem;
-    letter-spacing: .14em;
-    opacity: .7;
-  }
-
-  .resource strong {
-    font-size: .65rem;
+  .last-sync small {
+    color: var(--text-dim);
+    font-size: .64rem;
     font-weight: 700;
-    letter-spacing: .08em;
+    letter-spacing: .18em;
   }
 
-  .divider {
+  .last-sync em {
+    color: var(--text-primary);
+    font-size: .66rem;
+    font-style: normal;
+    font-weight: 600;
+    letter-spacing: .1em;
+  }
+
+  .last-sync i {
     width: 1px;
-    height: 15px;
-    margin: 0 18px;
-    background: rgba(3, 18, 25, .35);
-  }
-
-  .build-label {
-    color: rgba(190, 219, 226, .48);
-    font-size: .57rem;
-    letter-spacing: .2em;
+    height: 12px;
+    background: rgba(147, 167, 180, .45);
   }
 
   @keyframes orbit {
@@ -322,7 +300,7 @@
     }
 
     .status-strip {
-      padding-left: 18px;
+      padding: 0 18px;
     }
   }
 
@@ -369,21 +347,6 @@
     .status-strip {
       min-height: 28px;
       padding: 0 12px;
-    }
-
-    .resource-group {
-      overflow: hidden;
-    }
-
-    .resource small,
-    .divider,
-    .build-label {
-      display: none;
-    }
-
-    .resource {
-      white-space: nowrap;
-      font-size: .6rem;
     }
   }
 </style>

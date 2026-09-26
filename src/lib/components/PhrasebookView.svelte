@@ -232,7 +232,7 @@
   .section-title {
     color: var(--text-dim);
     font-family: var(--font-body);
-    font-size: .62rem;
+    font-size: .68rem;
     font-weight: 600;
     letter-spacing: .2em;
     text-transform: uppercase;
@@ -287,7 +287,7 @@
     grid-column: 1 / -1;
     color: var(--text-dim);
     font-family: var(--font-body);
-    font-size: .52rem;
+    font-size: .64rem;
     font-style: normal;
     letter-spacing: .14em;
     text-transform: uppercase;
@@ -575,7 +575,7 @@
     color: var(--text-dim);
     background: rgba(5, 12, 25, .97);
     font-family: var(--font-body);
-    font-size: .52rem;
+    font-size: .64rem;
     font-weight: 500;
     letter-spacing: .13em;
     text-transform: uppercase;
@@ -607,9 +607,10 @@
     max-width: 100%;
     margin-top: 2px;
     overflow: hidden;
-    color: rgba(130, 152, 167, .45);
+    color: var(--text-dim);
+    opacity: .75;
     font-family: var(--font-body);
-    font-size: .47rem;
+    font-size: .6rem;
     letter-spacing: .05em;
     text-overflow: ellipsis;
     white-space: nowrap;

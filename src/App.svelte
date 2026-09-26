@@ -3,6 +3,7 @@
   import { alienData } from './lib/data';
   import type { RaceName, ViewId } from './lib/types';
   import DataView from './lib/components/DataView.svelte';
+  import NpcView from './lib/components/NpcView.svelte';
   import PhrasebookView from './lib/components/PhrasebookView.svelte';
   import SpaceBackdrop from './lib/components/SpaceBackdrop.svelte';
   import TopBar from './lib/components/TopBar.svelte';
@@ -21,7 +22,7 @@
     const requestedRace = params.get('race') as RaceName | null;
     const storedRace = window.localStorage.getItem('nmt-race') as RaceName | null;
 
-    if (requestedView && ['translate', 'phrasebook', 'data'].includes(requestedView)) {
+    if (requestedView && ['npc', 'translate', 'phrasebook', 'data'].includes(requestedView)) {
       activeView = requestedView;
     }
     if (requestedRace && alienData.races.some((race) => race.name === requestedRace)) {
@@ -56,46 +57,46 @@
 
 <svelte:window onpointermove={handlePointerMove} onpointerleave={() => (cursorVisible = false)} />
 
-<SpaceBackdrop />
-<div
-  class="cursor-reticle"
-  class:visible={cursorVisible}
-  style={`left: ${cursorX}px; top: ${cursorY}px`}
-  aria-hidden="true"
->
-  <i></i>
-</div>
+{#if activeView === 'npc'}
+  <NpcView bind:selectedRace onExit={() => (activeView = 'translate')} />
+{:else}
+  <SpaceBackdrop />
+  <div
+    class="cursor-reticle"
+    class:visible={cursorVisible}
+    style={`left: ${cursorX}px; top: ${cursorY}px`}
+    aria-hidden="true"
+  >
+    <i></i>
+  </div>
 
-<div class="app-shell">
-  <TopBar
-    bind:activeView
-    entryCount={alienData.counts.includedEntries}
-    raceCount={alienData.races.length}
-  />
+  <div class="app-shell">
+    <TopBar bind:activeView />
 
-  <main class="main-content">
-    {#key activeView}
-      <div class="view-container">
-        {#if activeView === 'translate'}
-          <TranslateView bind:selectedRace />
-        {:else if activeView === 'phrasebook'}
-          <PhrasebookView bind:selectedRace />
-        {:else}
-          <DataView />
-        {/if}
-      </div>
-    {/key}
-  </main>
+    <main class="main-content">
+      {#key activeView}
+        <div class="view-container">
+          {#if activeView === 'translate'}
+            <TranslateView bind:selectedRace />
+          {:else if activeView === 'phrasebook'}
+            <PhrasebookView bind:selectedRace />
+          {:else}
+            <DataView />
+          {/if}
+        </div>
+      {/key}
+    </main>
 
-  <footer class="site-footer">
-    <span>UNOFFICIAL FAN UTILITY / NOT AFFILIATED WITH HELLGAME GAMES</span>
-    <span class="footer-center">
-      <kbd>Ctrl</kbd><b>+</b><kbd>Enter</kbd>
-      Translate
-      <i></i>
-      <kbd>Esc</kbd>
-      Clear
-    </span>
-    <span>NO REMOTE API / BROWSER LOCAL</span>
-  </footer>
-</div>
+    <footer class="site-footer">
+      <span>UNOFFICIAL FAN UTILITY / NOT AFFILIATED WITH HELLGAME GAMES</span>
+      <span class="footer-center">
+        <kbd>Ctrl</kbd><b>+</b><kbd>Enter</kbd>
+        Translate
+        <i></i>
+        <kbd>Esc</kbd>
+        Clear
+      </span>
+      <span>NO REMOTE API / BROWSER LOCAL</span>
+    </footer>
+  </div>
+{/if}

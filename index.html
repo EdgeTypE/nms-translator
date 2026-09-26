@@ -9,6 +9,14 @@
     />
     <meta name="theme-color" content="#050914" />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <!-- Preload the UI font so the first paint already uses the final metrics
+         instead of swapping from a fallback and reflowing the HUD. -->
+    <link rel="preload" href="./fonts/rajdhani-300.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="./fonts/rajdhani-400.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="./fonts/rajdhani-500.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="./fonts/rajdhani-600.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="./fonts/rajdhani-700.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="./fonts/roboto-400.woff2" as="font" type="font/woff2" crossorigin />
     <title>No Man's Sky Translator</title>
   </head>
   <body>
