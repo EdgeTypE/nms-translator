@@ -15,9 +15,9 @@ const publicAsset = (file: string) => `${import.meta.env.BASE_URL}${file}`;
  * Both are produced by tools/process_npc_assets.py. The height maps are
  * already normalised to [0,1], so the shader depth range is identity.
  *
- * Autophage temporarily reuses the Gek pair until its own portrait is added.
- * Atlas keeps its own file path so replacing the current placeholder requires
- * only re-running the asset script.
+ * Every species now ships its own pair. The tool inpaints the baked game UI for
+ * the three dialogue frames and for Autophage, and re-encodes Atlas untouched
+ * because that one is a clean render with no UI in it.
  */
 export const NPC_PORTRAITS: Record<RaceName, NpcPortrait> = {
   Gek: {
@@ -49,11 +49,11 @@ export const NPC_PORTRAITS: Record<RaceName, NpcPortrait> = {
     usesFallback: false,
   },
   Autophage: {
-    color: publicAsset('gek_plate.jpg'),
-    depth: publicAsset('gek_height.png'),
+    color: publicAsset('autophage_plate.jpg'),
+    depth: publicAsset('autophage_height.png'),
     depthRange: [0, 1],
     npcName: 'Autophage',
-    usesFallback: true,
+    usesFallback: false,
   },
 };
 

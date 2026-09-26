@@ -45,3 +45,19 @@ export const RACE_META: Record<RaceName, RaceMeta> = {
     speechModel: 'Generic',
   },
 };
+
+/**
+ * NPC dialogue accent per species: translated text, the speaker name, the HUD
+ * and the interactive highlights. Deliberately separate from RACE_META.accent,
+ * which drives the phrasebook species cards and has its own palette.
+ *
+ * Vy'keen and Atlas read below WCAG AA against the dialogue panel at narrow
+ * widths and for the speaker name at any width. These values are intentional.
+ */
+export const NPC_ACCENT: Record<RaceName, string> = {
+  Gek: '#86e070',
+  Korvax: '#ddb7ff',
+  "Vy'keen": '#ff4826',
+  Atlas: '#ff2b2b',
+  Autophage: '#b4d2ff',
+};

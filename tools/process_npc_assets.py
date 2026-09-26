@@ -31,6 +31,7 @@ import base64
 import io
 import re
 import sys
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import cv2
@@ -42,15 +43,7 @@ from scipy.spatial import cKDTree
 ROOT = Path(__file__).resolve().parent.parent
 PUBLIC = ROOT / "public"
 
-# race -> (colour source, depth source)
-RACES = {
-    "Gek": ("gek.jpg", "gek_depth.webp"),
-    "Korvax": ("korvax.png", "korvax_depth.webp"),
-    "Vy'keen": ("vykenn.png", "vykenn_depth.webp"),
-    "Atlas": ("atlas.png", "atlas_depth.webp"),
-}
-
-# Fixed HUD boxes shared by every frame (the game UI is screen-locked).
+# Fixed HUD boxes shared by every gameplay frame (the game UI is screen-locked).
 # (x0, y0, x1, y1, brightness_threshold or None for whole-box)
 NAME_BOX = (240, 790, 520, 830, 190)      # name label text
 DIALOGUE_BOX = (250, 875, 1320, 935, 190)  # dialogue text line
@@ -59,6 +52,49 @@ ARROW_BOX = (720, 990, 795, 1040, None)    # continue chevron (solid icon)
 # Fallback box for the static reticle if auto-detection misses it.
 RETICLE_FALLBACK_BOX = (1525, 760, 1605, 840)
 RETICLE_SEARCH = (1450, 720, 1700, 860)   # x0, y0, x1, y1
+
+# Gek / Korvax / Vy'keen are all the same screen-locked dialogue layout.
+GAMEPLAY_BOXES = (NAME_BOX, DIALOGUE_BOX, ARROW_BOX)
+
+# Autophage is a gameplay frame too, but a different layout: a wider name pill,
+# a numbered option list down the right edge, and no continue chevron. Its
+# pointer ring sits near x=1290, well outside RETICLE_SEARCH, and the chevron
+# box would land on the character's own body, so it is deliberately omitted.
+AUTOPHAGE_BOXES = (
+    (250, 793, 660, 840, 190),     # name pill text, wider than the default
+    (400, 868, 1150, 932, 190),    # dialogue line
+    (1332, 790, 1920, 950, None),  # numbered option rows, masked whole
+)
+AUTOPHAGE_RETICLE_SEARCH = (1180, 600, 1420, 780)
+
+
+@dataclass(frozen=True)
+class UiSpec:
+    """Where the baked game UI lives in one source frame.
+
+    No ``boxes`` and ``detect_reticle=False`` means the frame is a clean render:
+    it is re-encoded to JPEG but never inpainted.
+    """
+
+    boxes: tuple = field(default_factory=tuple)
+    detect_reticle: bool = True
+    reticle_search: tuple = RETICLE_SEARCH
+    reticle_fallback: tuple = RETICLE_FALLBACK_BOX
+
+
+# race -> (colour source, depth source, baked UI layout)
+RACES = {
+    "Gek": ("gek.jpg", "gek_depth.webp", UiSpec(GAMEPLAY_BOXES)),
+    "Korvax": ("korvax.png", "korvax_depth.webp", UiSpec(GAMEPLAY_BOXES)),
+    "Vy'keen": ("vykenn.png", "vykenn_depth.webp", UiSpec(GAMEPLAY_BOXES)),
+    # Atlas ships as a clean render with no dialogue UI baked in.
+    "Atlas": ("atlas.png", "atlas_depth.webp", UiSpec(detect_reticle=False)),
+    "Autophage": (
+        "autophage.png",
+        "autophage_depth.webp",
+        UiSpec(AUTOPHAGE_BOXES, reticle_search=AUTOPHAGE_RETICLE_SEARCH),
+    ),
+}
 
 
 def decode_depth(path: Path) -> tuple[np.ndarray, float]:
@@ -79,12 +115,12 @@ def decode_depth(path: Path) -> tuple[np.ndarray, float]:
     return depth, nn_error
 
 
-def detect_reticle_box(gray: np.ndarray) -> tuple[int, int, int, int]:
-    """Locate the bright circular mouse reticle on the right side of the frame."""
+def detect_reticle_box(gray: np.ndarray, spec: UiSpec) -> tuple[int, int, int, int]:
+    """Locate the bright circular mouse reticle inside this frame's search area."""
     h, w = gray.shape
-    x0, y0, x1, y1 = RETICLE_SEARCH
+    x0, y0, x1, y1 = spec.reticle_search
     region = np.zeros((h, w), np.uint8)
-    region[y0:y1, x0:min(x1, w)] = 255
+    region[max(0, y0):min(h, y1), max(0, x0):min(w, x1)] = 255
 
     bright = ((gray > 200) & (region > 0)).astype(np.uint8) * 255
     close = cv2.morphologyEx(
@@ -102,16 +138,25 @@ def detect_reticle_box(gray: np.ndarray) -> tuple[int, int, int, int]:
                     best = (x, y, ww, hh, area)
 
     if best is None:
-        return RETICLE_FALLBACK_BOX
+        return spec.reticle_fallback
     x, y, ww, hh, _ = best
     return (max(0, x - 12), max(0, y - 12), min(w, x + ww + 12), min(h, y + hh + 12))
 
 
-def inpaint_plate(path: Path) -> tuple[int, int, int, int]:
-    """Remove the baked game UI from a colour frame and save <race>_plate.jpg."""
+def inpaint_plate(path: Path, spec: UiSpec) -> tuple[int, int, int, int] | None:
+    """Remove the baked game UI from a colour frame and save <race>_plate.jpg.
+
+    A clean render (no boxes, no reticle to find) is only re-encoded to JPEG so
+    the parallax shader keeps one texture format across every species.
+    """
     img = cv2.imread(str(path))
     if img is None:
         raise FileNotFoundError(path)
+
+    out = PUBLIC / f"{path.stem}_plate.jpg"
+    if not spec.boxes and not spec.detect_reticle:
+        cv2.imwrite(str(out), img, [cv2.IMWRITE_JPEG_QUALITY, 88])
+        return None
 
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     v = img.max(axis=2)  # brightness = max channel
@@ -128,18 +173,17 @@ def inpaint_plate(path: Path) -> tuple[int, int, int, int]:
             region = v[y0:y1, x0:x1]
             mask[y0:y1, x0:x1][region > thresh] = 255
 
-    add_box(NAME_BOX)
-    add_box(DIALOGUE_BOX)
-    add_box(ARROW_BOX)
+    for box in spec.boxes:
+        add_box(box)
 
-    reticle_box = detect_reticle_box(gray)
-    add_box((*reticle_box, None))
+    reticle_box = None
+    if spec.detect_reticle:
+        reticle_box = detect_reticle_box(gray, spec)
+        add_box((*reticle_box, None))
 
     mask = cv2.dilate(mask, np.ones((3, 3), np.uint8), iterations=3)
     result = cv2.inpaint(img, mask, 5, cv2.INPAINT_TELEA)
 
-    stem = path.stem
-    out = PUBLIC / f"{stem}_plate.jpg"
     cv2.imwrite(str(out), result, [cv2.IMWRITE_JPEG_QUALITY, 88])
     return reticle_box
 
@@ -178,7 +222,7 @@ def main() -> int:
         return 1
 
     gek_height = None
-    for race, (color_name, depth_name) in RACES.items():
+    for race, (color_name, depth_name, spec) in RACES.items():
         color_path = PUBLIC / color_name
         depth_path = PUBLIC / depth_name
         if not color_path.exists() or not depth_path.exists():
@@ -189,10 +233,11 @@ def main() -> int:
         height_path = PUBLIC / f"{color_path.stem}_height.png"
         cv2.imwrite(str(height_path), (depth * 255).astype(np.uint8))
 
-        reticle_box = inpaint_plate(color_path)
+        reticle_box = inpaint_plate(color_path, spec)
+        detail = "clean render, re-encoded only" if reticle_box is None else f"reticle box={reticle_box}"
         print(
             f"[{race}] depth NN err={nn_error:.2f} "
-            f"-> {height_path.name}; plate saved; reticle box={reticle_box}"
+            f"-> {height_path.name}; plate saved; {detail}"
         )
 
         if race == "Gek":

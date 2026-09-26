@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { get } from 'svelte/store';
   import { alienData, translationEngine } from '../data';
+  import { NPC_ACCENT } from '../races';
   import { createNpcParallax, type ParallaxController } from '../npc/parallax';
   import { computeStageLayout, type StageLayout } from '../npc/layout';
   import { getNpcPortrait } from '../npc/portraits';
@@ -46,6 +47,16 @@
     `bottom:${layout.inputBottom}px`,
   ].join(';');
   $: optionsStyle = `bottom:${layout.optionsBottom}px`;
+  // The panel is masked so its right edge fades out, and a mask clips the
+  // element's children to its own box. The speaker tab deliberately overhangs
+  // the panel's top edge, so it (and the status readout) are positioned from
+  // these variables as siblings of the panel instead of children of it.
+  $: panelVars = `--panel-left:${layout.panel.left}px;--panel-top:${layout.panel.top}px`;
+  $: statusVars = `${panelVars};--panel-width:${layout.panel.width}px`;
+  // Every green in this view is really the species accent, so one inline
+  // custom property repaints translated text, the speaker name, the HUD and
+  // the interactive highlights when the species changes.
+  $: accentStyle = `--npc-accent:${NPC_ACCENT[selectedRace]}`;
   $: speakerTag = direction === 'alien-to-english'
     ? `${selectedRace} Translator`
     : `${selectedRace} Speaker`;
@@ -215,6 +226,7 @@
 <section
   class="npc-view"
   class:webgl-failed={webglFailed}
+  style={accentStyle}
   aria-label={`Talking to ${portrait.npcName}`}
 >
   <div
@@ -227,10 +239,10 @@
   <div class="vignette" aria-hidden="true"></div>
 
   <div class="hud">
-    <svg viewBox="0 0 24 24" fill="none" stroke="#86e070" stroke-width="1.6" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
       <circle cx="12" cy="12" r="9" />
       <path d="M12 3v18M3 12h18" opacity=".5" />
-      <circle cx="12" cy="12" r="3.5" fill="#86e070" />
+      <circle cx="12" cy="12" r="3.5" fill="currentColor" />
     </svg>
     <span>NO MAN'S SKY <b>TRANSLATOR</b></span>
   </div>
@@ -258,19 +270,24 @@
       />
     </div>
 
-    <div class="dialogue-panel" style={panelStyle}>
-      <div class="speaker-tag">{speakerTag}</div>
-      <div class="status-text">{statusText}</div>
+    <!-- Outside the panel on purpose: the panel's mask would clip these to its
+         border box and slice the overhanging speaker tab in half. -->
+    <div class="speaker-tag" style={panelVars}>{speakerTag}</div>
+    <div class="status-text" style={statusVars}>{statusText}</div>
 
+    <div class="dialogue-panel" style={panelStyle}>
       <div class="output" aria-live="polite">
-        {#key translation?.output ?? ''}
-          {#each translation?.segments ?? [] as segment, index}
-            <span
-              class:known={segment.status === 'translated' || segment.status === 'ambiguous'}
-              style={`animation-delay:${index * 70}ms`}
-            >{segment.output}</span>
-          {/each}
-        {/key}
+        <!-- Unkeyed on purpose. The segments are an append-only stream, so
+             positional diffing keeps the existing word spans in place and only
+             the newly appended ones mount, which is what limits npc-word-in to
+             the new text. Keying on the output string remounted the whole
+             block per keystroke and replayed every word. -->
+        {#each translation?.segments ?? [] as segment, index}
+          <span
+            class:known={segment.status === 'translated' || segment.status === 'ambiguous'}
+            style={`animation-delay:${index * 70}ms`}
+          >{segment.output}</span>
+        {/each}
       </div>
 
       <button
@@ -320,7 +337,9 @@
 
 <style>
   .npc-view {
-    --npc-green: #86e070;
+    /* Species accent, overridden per-race by the inline custom property on the
+       section. Gek's green is the fallback if that ever fails to resolve. */
+    --npc-accent: #86e070;
     --npc-gold: #a3915a;
     --npc-panel: rgba(12, 72, 84, .86);
     --npc-ink: #eaf7f5;
@@ -394,10 +413,13 @@
   .hud svg {
     width: 26px;
     height: 26px;
+    /* currentColor, because var() is not honoured in SVG presentation
+       attributes. */
+    color: var(--npc-accent);
   }
 
   .hud b {
-    color: var(--npc-green);
+    color: var(--npc-accent);
     font-weight: 500;
   }
 
@@ -442,7 +464,7 @@
     align-items: center;
     padding: 6px 16px;
     border: 1px solid var(--npc-gold);
-    border-left: 3px solid var(--npc-green);
+    border-left: 3px solid var(--npc-accent);
     background: rgba(8, 44, 54, .72);
   }
 
@@ -450,7 +472,7 @@
     padding: 4px 0;
     border: 0;
     outline: 0;
-    color: var(--npc-green);
+    color: var(--npc-accent);
     background: transparent;
     font: inherit;
     font-size: 13px;
@@ -500,28 +522,39 @@
     background: radial-gradient(rgba(140, 255, 235, .13) 1px, transparent 1.3px) 0 0 / 14px 14px;
   }
 
+  /* Siblings of .dialogue-panel, positioned from the panel geometry. The
+     --dx/--dy indirection keeps the narrow-screen overrides working without
+     inline styles having to win over the media query. */
   .speaker-tag {
+    --tag-dx: 44px;
+    --tag-dy: -22px;
     position: absolute;
-    left: 44px;
-    top: -22px;
-    z-index: 2;
+    left: calc(var(--panel-left) + var(--tag-dx));
+    top: calc(var(--panel-top) + var(--tag-dy));
+    z-index: 5;
     padding: 5px 28px;
     border: 1px solid rgba(163, 145, 90, .5);
     border-bottom: 0;
     border-radius: 999px 999px 0 0;
-    color: var(--npc-green);
+    color: var(--npc-accent);
     background: rgba(9, 46, 56, .95);
     font-size: clamp(15px, 1.15vw, 21px);
   }
 
   .status-text {
+    --status-dx: 46px;
+    --status-dy: 12px;
     position: absolute;
-    right: 46px;
-    top: 12px;
-    z-index: 2;
+    /* Anchored from the right edge of .npc-ui, offset back to the panel's own
+       right edge. Using `right` (rather than left + translateX) keeps the
+       shrink-to-fit width honest, so the readout never wraps to three lines. */
+    right: calc(100% - var(--panel-left) - var(--panel-width) + var(--status-dx));
+    top: calc(var(--panel-top) + var(--status-dy));
+    z-index: 5;
     color: #8fcfc7;
     font-size: 13px;
     letter-spacing: .1em;
+    white-space: nowrap;
   }
 
   .output {
@@ -542,7 +575,7 @@
   }
 
   .output span.known {
-    color: var(--npc-green);
+    color: var(--npc-accent);
   }
 
   .copy-button {
@@ -605,13 +638,17 @@
 
   .direction-options button.active {
     color: #fff;
-    background: rgba(64, 150, 110, .88);
+    /* Species accent at the same alpha the fixed green used to have. Note the
+       white label drops below WCAG AA on the paler species (Gek 1.96,
+       Autophage 1.87, Korvax 2.06, Vy'keen 4.06; only Atlas reaches 4.52).
+       Accepted deliberately to keep the button on-palette. */
+    background: color-mix(in srgb, var(--npc-accent) 88%, transparent);
     transform: translateX(-8px);
   }
 
   .direction-options button.active i {
-    border-color: var(--npc-green);
-    background: var(--npc-green);
+    border-color: var(--npc-accent);
+    background: var(--npc-accent);
   }
 
   .reticle {
@@ -649,7 +686,7 @@
   .npc-view :global(button:focus-visible),
   .npc-view :global(input:focus-visible),
   .npc-view :global(select:focus-visible) {
-    outline: 2px solid var(--npc-green);
+    outline: 2px solid var(--npc-accent);
     outline-offset: 2px;
   }
 
@@ -709,13 +746,13 @@
     }
 
     .speaker-tag {
-      left: 22px;
+      --tag-dx: 22px;
       padding: 4px 16px;
     }
 
     .status-text {
-      right: 24px;
-      top: 9px;
+      --status-dx: 24px;
+      --status-dy: 9px;
       font-size: 10px;
     }
 
