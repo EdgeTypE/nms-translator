@@ -2,24 +2,60 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta
-      name="description"
-      content="A fast offline translator and phrasebook for every major No Man's Sky alien language."
-    />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Alien Translator — No Man's Sky</title>
+    <meta name="description" content="Translate Gek, Korvax, Vy’keen, Atlas and Autophage text in No Man's Sky. Runs entirely in your browser from a 4,830-entry game-accurate lexicon." />
+    <meta name="keywords" content="No Man's Sky translator, alien language translator, Gek translator, Korvax translator, Vy'keen translator, NMS alien decoder" />
+    <link rel="canonical" href="https://nms-translator.pages.dev/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Alien Translator — No Man's Sky" />
+    <meta property="og:description" content="Translate Gek, Korvax, Vy’keen, Atlas and Autophage text in No Man's Sky. Runs entirely in your browser from a 4,830-entry game-accurate lexicon." />
+    <meta property="og:url" content="https://nms-translator.pages.dev/" />
+    <meta property="og:site_name" content="No Man's Sky Translator" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Alien Translator — No Man's Sky" />
+    <meta name="twitter:description" content="Translate Gek, Korvax, Vy’keen, Atlas and Autophage text in No Man's Sky. Runs entirely in your browser from a 4,830-entry game-accurate lexicon." />
     <meta name="theme-color" content="#050914" />
-    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
-    <!-- Preload the UI font so the first paint already uses the final metrics
-         instead of swapping from a fallback and reflowing the HUD. -->
-    <link rel="preload" href="./fonts/rajdhani-300.woff2" as="font" type="font/woff2" crossorigin />
-    <link rel="preload" href="./fonts/rajdhani-400.woff2" as="font" type="font/woff2" crossorigin />
-    <link rel="preload" href="./fonts/rajdhani-500.woff2" as="font" type="font/woff2" crossorigin />
-    <link rel="preload" href="./fonts/rajdhani-600.woff2" as="font" type="font/woff2" crossorigin />
-    <link rel="preload" href="./fonts/rajdhani-700.woff2" as="font" type="font/woff2" crossorigin />
-    <link rel="preload" href="./fonts/roboto-400.woff2" as="font" type="font/woff2" crossorigin />
-    <title>No Man's Sky Translator</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preload" href="/fonts/rajdhani-300.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/rajdhani-400.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/rajdhani-500.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/rajdhani-600.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/rajdhani-700.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/roboto-400.woff2" as="font" type="font/woff2" crossorigin />
+  <style>
+    .noscript-shell {
+      max-width: 42rem;
+      margin: 0 auto;
+      padding: 3rem 1.5rem;
+      color: #edf5f7;
+      background: #03060d;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      line-height: 1.6;
+    }
+    .noscript-shell h1 { color: #ffd83f; }
+    .noscript-shell a { color: #69dbe9; }
+  </style>
   </head>
   <body>
+    <noscript>
+      <div class="noscript-shell">
+        <h1>No Man's Sky Alien Translator</h1>
+        <p>Translate every major alien language in No Man’s Sky. Type alien text to decode it into English, or enter English to speak alien — processed entirely on your own device.</p>
+        <p>
+          The interactive translator needs JavaScript. Enable it to use the
+          offline alien-to-English and English-to-alien decoders.
+        </p>
+        <nav aria-label="Site sections">
+          <h2>Sections</h2>
+          <ul>
+      <li><a href="/phrasebook/">Phrasebook</a></li>
+      <li><a href="/archive/">Archive Data</a></li>
+      <li><a href="/npc/">NPC Dialogue</a></li>
+          </ul>
+        </nav>
+      </div>
+    </noscript>
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>

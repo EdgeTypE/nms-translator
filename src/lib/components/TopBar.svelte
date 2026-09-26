@@ -1,11 +1,14 @@
 <script lang="ts">
   import { alienData } from '../data';
   import { formatArchiveDate, GAME_VERSION } from '../app-meta';
+  import { pathFor } from '../routing';
+  import type { ViewId } from '../types';
   import Icon from './Icon.svelte';
   import RaceGlyph from './RaceGlyph.svelte';
-  import type { ViewId } from '../types';
 
   export let activeView: ViewId;
+  /** Set by the router; intercepts clicks for instant SPA navigation. */
+  export let onNavigate: (view: ViewId) => void = () => undefined;
 
   const navItems: Array<{ id: ViewId; label: string; icon: 'message' | 'translate' | 'book' | 'database' }> = [
     { id: 'npc', label: 'NPC Dialogue', icon: 'message' },
@@ -18,25 +21,37 @@
 </script>
 
 <header class="topbar">
-  <button class="brand" type="button" onclick={() => (activeView = 'translate')} aria-label="Open translator">
+  <a
+    class="brand"
+    href={pathFor('translate')}
+    onclick={(event) => {
+      event.preventDefault();
+      onNavigate('translate');
+    }}
+    aria-label="Open translator"
+  >
     <span class="brand-mark"><RaceGlyph race="Atlas" size={42} strokeWidth={2} /></span>
     <span class="brand-copy">
       <strong>No Man's Sky</strong>
       <span>Translator</span>
     </span>
-  </button>
+  </a>
 
   <nav class="main-nav" aria-label="Primary navigation">
     {#each navItems as item}
-      <button
-        type="button"
+      <a
+        href={pathFor(item.id)}
         class:active={activeView === item.id}
         aria-current={activeView === item.id ? 'page' : undefined}
-        onclick={() => (activeView = item.id)}
+        onclick={(event) => {
+          if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
+          event.preventDefault();
+          onNavigate(item.id);
+        }}
       >
         <Icon name={item.icon} size={17} />
         <span>{item.label}</span>
-      </button>
+      </a>
     {/each}
   </nav>
 
@@ -81,6 +96,7 @@
     color: var(--text-primary);
     background: transparent;
     text-align: left;
+    text-decoration: none;
     cursor: pointer;
   }
 
@@ -123,7 +139,7 @@
     min-width: 0;
   }
 
-  .main-nav button {
+  .main-nav a {
     position: relative;
     display: flex;
     align-items: center;
@@ -137,12 +153,13 @@
     font-size: .8rem;
     font-weight: 500;
     letter-spacing: .14em;
+    text-decoration: none;
     text-transform: uppercase;
     cursor: pointer;
     transition: color 160ms ease, background 160ms ease;
   }
 
-  .main-nav button::after {
+  .main-nav a::after {
     content: '';
     position: absolute;
     left: 20%;
@@ -154,17 +171,17 @@
     transition: transform 160ms ease;
   }
 
-  .main-nav button:hover {
+  .main-nav a:hover {
     color: #fff;
     background: rgba(255, 255, 255, .025);
   }
 
-  .main-nav button.active {
+  .main-nav a.active {
     color: #11131b;
     background: var(--signal-yellow);
   }
 
-  .main-nav button.active::after {
+  .main-nav a.active::after {
     transform: scaleX(1);
   }
 
@@ -285,7 +302,7 @@
       display: none;
     }
 
-    .main-nav button {
+    .main-nav a {
       min-width: auto;
       padding: 0 16px;
     }
@@ -334,7 +351,7 @@
       justify-content: flex-start;
     }
 
-    .main-nav button {
+    .main-nav a {
       min-width: 106px;
       padding: 0 12px;
       font-size: .66rem;

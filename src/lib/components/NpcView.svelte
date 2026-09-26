@@ -11,9 +11,10 @@
 
   export let selectedRace: RaceName = 'Gek';
   export let onExit: () => void = () => undefined;
+  /** Bound to the router so the dialogue survives real page navigations. */
+  export let sourceText = '';
+  export let direction: TranslationDirection = 'alien-to-english';
 
-  let direction: TranslationDirection = 'alien-to-english';
-  let sourceText = '';
   let translation: TranslationResult | null = null;
   let statusOverride = '';
   let userEdited = false;
@@ -156,7 +157,10 @@
   onMount(() => {
     document.body.classList.add('npc-mode');
     const seed = get(conversationDraft);
-    if (seed.text.trim()) {
+    if (sourceText.trim()) {
+      // Router restored a draft; keep it as-is.
+      userEdited = true;
+    } else if (seed.text.trim()) {
       // Continue the conversation from the Translate view; treat the handed
       // text as user-authored so switching species/direction won't replace it.
       sourceText = seed.text;

@@ -14,12 +14,13 @@
   import RaceGlyph from './RaceGlyph.svelte';
 
   export let selectedRace: RaceName = 'Gek';
+  /** Bound to the router so the text survives real page navigations. */
+  export let sourceText = '';
+  export let direction: TranslationDirection = 'alien-to-english';
 
   /** Idle time (ms) after the last keystroke before live translation fires. */
   const AUTO_TRANSLATE_DELAY = 400;
 
-  let direction: TranslationDirection = 'alien-to-english';
-  let sourceText = '';
   let translation: TranslationResult | null = null;
   let isTranslating = false;
   let isPending = false;
@@ -43,7 +44,9 @@
 
   onMount(() => {
     const seed = get(conversationDraft);
-    if (seed.text.trim()) {
+    if (sourceText.trim()) {
+      // Router restored a draft; keep it as-is.
+    } else if (seed.text.trim()) {
       sourceText = seed.text;
       direction = seed.direction;
     } else {

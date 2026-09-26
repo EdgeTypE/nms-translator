@@ -4,15 +4,16 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
+    "gen:pages": "node scripts/gen-pages.mjs",
+    "predev": "npm run gen:pages",
     "dev": "vite",
+    "prebuild": "npm run gen:pages",
     "build": "vite build",
     "preview": "vite preview",
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "test": "vitest run"
   },
   "dependencies": {
-    "@fontsource/rajdhani": "^5.3.0",
-    "@fontsource/roboto": "^5.3.0",
     "svelte": "^5.57.1"
   },
   "devDependencies": {

@@ -1,6 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { alienData } from './lib/data';
+  import PAGE_META from './lib/pages.json';
+  import { loadSession, pathFor, resolveRace, resolveView, saveSession } from './lib/routing';
   import type { RaceName, ViewId } from './lib/types';
   import DataView from './lib/components/DataView.svelte';
   import NpcView from './lib/components/NpcView.svelte';
@@ -9,35 +11,80 @@
   import TopBar from './lib/components/TopBar.svelte';
   import TranslateView from './lib/components/TranslateView.svelte';
 
+  const RACE_NAMES = alienData.races.map((race) => race.name);
+  const META = PAGE_META as Array<{ id: ViewId; title: string; description: string }>;
+
   let activeView: ViewId = 'translate';
   let selectedRace: RaceName = 'Gek';
   let cursorX = -100;
   let cursorY = -100;
   let cursorVisible = false;
   let locationReady = false;
+  let draftText = '';
+  let draftDirection: 'alien-to-english' | 'english-to-alien' = 'alien-to-english';
 
   onMount(() => {
-    const params = new URLSearchParams(window.location.search);
-    const requestedView = params.get('view') as ViewId | null;
-    const requestedRace = params.get('race') as RaceName | null;
-    const storedRace = window.localStorage.getItem('nmt-race') as RaceName | null;
+    const initial = resolveView(window.location);
+    const session = loadSession();
 
-    if (requestedView && ['npc', 'translate', 'phrasebook', 'data'].includes(requestedView)) {
-      activeView = requestedView;
+    activeView = initial;
+    selectedRace =
+      resolveRace(session?.race ?? null, RACE_NAMES) ??
+      resolveRace(new URLSearchParams(window.location.search).get('race'), RACE_NAMES) ??
+      resolveRace(localStorage.getItem('nmt-race'), RACE_NAMES) ??
+      'Gek';
+
+    if (typeof session?.text === 'string') draftText = session.text;
+    if (session?.direction) draftDirection = session.direction;
+
+    // Legacy ?view=/?race= links are redirected to their canonical path once.
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('view') || params.has('race')) {
+      window.history.replaceState(null, '', pathFor(activeView));
     }
-    if (requestedRace && alienData.races.some((race) => race.name === requestedRace)) {
-      selectedRace = requestedRace;
-    } else if (storedRace && alienData.races.some((race) => race.name === storedRace)) {
-      selectedRace = storedRace;
-    }
+
+    const onPopState = () => {
+      activeView = resolveView(window.location);
+      const paramsNow = new URLSearchParams(window.location.search);
+      const race = resolveRace(paramsNow.get('race'), RACE_NAMES);
+      if (race) selectedRace = race;
+      syncHead(activeView);
+    };
+
+    window.addEventListener('popstate', onPopState);
     locationReady = true;
+
+    return () => window.removeEventListener('popstate', onPopState);
   });
 
-  $: if (typeof window !== 'undefined' && locationReady) {
-    window.localStorage.setItem('nmt-race', selectedRace);
-    const url = new URL(window.location.href);
-    url.searchParams.set('view', activeView);
-    window.history.replaceState(null, '', url);
+  // Keep the stored session in sync so a hard reload / real page navigation
+  // restores the user's text, selected species and direction.
+  $: if (locationReady) {
+    localStorage.setItem('nmt-race', selectedRace);
+    saveSession({ race: selectedRace, text: draftText, direction: draftDirection });
+  }
+
+  /**
+   * Instant SPA navigation changes the URL but never re-downloads the bundle,
+   * so the document head has to be re-pointed to match the HTML that a full
+   * page load of this route would have served.
+   */
+  function syncHead(view: ViewId) {
+    const meta = META.find((entry) => entry.id === view);
+    if (!meta) return;
+    document.title = meta.title;
+    const description = document.querySelector<HTMLMetaElement>('meta[name="description"]');
+    description?.setAttribute('content', meta.description);
+    const canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+    if (canonical) canonical.href = new URL(pathFor(view), window.location.origin).href;
+  }
+
+  function navigate(view: ViewId) {
+    if (view === activeView) return;
+    activeView = view;
+    window.history.pushState(null, '', pathFor(view));
+    window.scrollTo(0, 0);
+    syncHead(view);
   }
 
   function handlePointerMove(event: PointerEvent) {
@@ -47,18 +94,10 @@
   }
 </script>
 
-<svelte:head>
-  <meta property="og:title" content="No Man's Sky Translator" />
-  <meta
-    property="og:description"
-    content="Translate every major No Man's Sky alien language locally in your browser."
-  />
-</svelte:head>
-
 <svelte:window onpointermove={handlePointerMove} onpointerleave={() => (cursorVisible = false)} />
 
 {#if activeView === 'npc'}
-  <NpcView bind:selectedRace onExit={() => (activeView = 'translate')} />
+  <NpcView bind:selectedRace onExit={() => navigate('translate')} />
 {:else}
   <SpaceBackdrop />
   <div
@@ -71,13 +110,17 @@
   </div>
 
   <div class="app-shell">
-    <TopBar bind:activeView />
+    <TopBar bind:activeView onNavigate={navigate} />
 
     <main class="main-content">
       {#key activeView}
         <div class="view-container">
           {#if activeView === 'translate'}
-            <TranslateView bind:selectedRace />
+            <TranslateView
+              bind:selectedRace
+              bind:sourceText={draftText}
+              bind:direction={draftDirection}
+            />
           {:else if activeView === 'phrasebook'}
             <PhrasebookView bind:selectedRace />
           {:else}
