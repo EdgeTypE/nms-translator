@@ -10,6 +10,7 @@
     "prebuild": "npm run gen:pages",
     "build": "vite build",
     "preview": "vite preview",
+    "precheck": "npm run gen:pages",
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "test": "vitest run"
   },
