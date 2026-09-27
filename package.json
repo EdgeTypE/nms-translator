@@ -14,7 +14,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "svelte": "^5.57.1"
+    "svelte": "^5.57.1",
+    "tesseract.js": "^5.1.1"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^7.3.1",

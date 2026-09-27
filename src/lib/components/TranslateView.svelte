@@ -6,6 +6,7 @@
   import { conversationDraft } from '../stores/handoff';
   import { dismissNpcPromo, npcPromoDismissed } from '../stores/promo';
   import { getNpcPortrait } from '../npc/portraits';
+  import { releaseOcrWorker, scanScreenshot } from '../ocr';
   import type {
     RaceName,
     TranslationDirection,
@@ -35,6 +36,71 @@
   let autoTranslateTimer: number | undefined;
   let copyTimer: number | undefined;
   let handoffReady = false;
+  let fileInput: HTMLInputElement;
+  let scanning = false;
+  let scanMessage = '';
+  let scanFailed = false;
+
+  /** The source box is capped, so a long dialogue line has to be trimmed. */
+  const SOURCE_MAX = 280;
+
+  /**
+   * Reads a screenshot, then drops the text into the source box and switches to
+   * the species that was detected. Runs entirely in the page; the first scan
+   * also pulls Tesseract's wasm and language data, which is why it can take a
+   * while.
+   */
+  async function runScan(source: Blob | undefined | null): Promise<void> {
+    if (!source || scanning) return;
+    scanning = true;
+    scanFailed = false;
+    scanMessage = 'Reading the image… the first scan also loads the text reader.';
+    try {
+      const result = await scanScreenshot(source);
+      const trimmed = result.text.slice(0, SOURCE_MAX);
+      if (!trimmed) throw new Error('No readable text was found in that image.');
+
+      sourceText = trimmed;
+      if (result.race) selectedRace = result.race;
+      direction = 'alien-to-english';
+
+      const alienCount = result.words.filter((word) => word.alien).length;
+      const found = result.words.length;
+      const trimmedNote =
+        trimmed.length < result.text.length ? ' · trimmed to 280 characters' : '';
+      scanMessage = result.race
+        ? `Read ${found} words · ${alienCount} alien · detected ${result.race}${trimmedNote}`
+        : `Read ${found} words · no alien script matched, kept ${selectedRace}${trimmedNote}`;
+      requestTranslation();
+    } catch (error) {
+      scanFailed = true;
+      scanMessage = error instanceof Error ? error.message : 'Could not read that image.';
+    } finally {
+      scanning = false;
+    }
+  }
+
+  function onFileChosen(event: Event): void {
+    const input = event.currentTarget as HTMLInputElement;
+    void runScan(input.files?.[0]);
+    // Allow the same file to be picked again after an edit.
+    input.value = '';
+  }
+
+  function onPaste(event: ClipboardEvent): void {
+    // Only image pastes are intercepted; a text paste into the box or anywhere
+    // else is left completely alone.
+    const items = event.clipboardData?.items;
+    if (!items) return;
+    for (const item of Array.from(items)) {
+      if (!item.type.startsWith('image/')) continue;
+      const file = item.getAsFile();
+      if (!file) continue;
+      event.preventDefault();
+      void runScan(file);
+      return;
+    }
+  }
 
   $: raceEntries = translationEngine.getEntries(selectedRace);
   $: raceCount = raceEntries.length;
@@ -62,9 +128,14 @@
     }
     handoffReady = true;
     translation = translateNow();
+    // A pasted screenshot is treated the same as a picked file. Only image
+    // pastes are handled, so typing and pasting text is unaffected.
+    document.addEventListener('paste', onPaste);
   });
 
   onDestroy(() => {
+    document.removeEventListener('paste', onPaste);
+    releaseOcrWorker();
     if (translationTimer) window.clearTimeout(translationTimer);
     if (autoTranslateTimer) window.clearTimeout(autoTranslateTimer);
     if (copyTimer) window.clearTimeout(copyTimer);
@@ -522,7 +593,30 @@
           <Icon name={copied ? 'check' : 'copy'} size={16} />
           {copied ? 'Copied' : 'Copy result'}
         </button>
+        <button
+          type="button"
+          class="ocr-button"
+          onclick={() => fileInput.click()}
+          disabled={scanning}
+          title="Read the text out of a screenshot. You can also paste one with Ctrl+V."
+        >
+          <Icon name="image" size={16} />
+          <span class="ocr-button-label">{scanning ? 'Reading…' : 'Upload image'}</span>
+        </button>
+        <input
+          bind:this={fileInput}
+          class="ocr-file"
+          type="file"
+          accept="image/*"
+          onchange={onFileChosen}
+        />
       </div>
+
+      {#if scanMessage}
+        <p class="ocr-status" class:is-error={scanFailed}>
+          {scanMessage}
+        </p>
+      {/if}
 
       <button class="translate-button" type="button" onclick={requestTranslation} disabled={!sourceText.trim()}>
         <span>{isTranslating ? 'Decoding' : 'Translate'}</span>
@@ -1363,6 +1457,59 @@
     background: rgba(105, 202, 219, .08);
   }
 
+  /* The file input only exists to be clicked; the button is the control. */
+  .ocr-file {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    border: 0;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .ocr-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 35px;
+    padding: 0 13px;
+    border: 1px solid rgba(112, 193, 209, .26);
+    color: var(--signal-cyan);
+    background: transparent;
+    font-family: var(--font-body);
+    font-size: .68rem;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: color 150ms ease, border-color 150ms ease, background-color 150ms ease;
+  }
+
+  .ocr-button:hover:not(:disabled) {
+    color: #fff;
+    border-color: rgba(105, 219, 233, .5);
+    background: rgba(16, 38, 58, .65);
+  }
+
+  .ocr-button:disabled {
+    opacity: .55;
+    cursor: progress;
+  }
+
+  .ocr-status {
+    margin: 0;
+    color: var(--text-dim);
+    font-family: var(--font-body);
+    font-size: .68rem;
+    letter-spacing: .1em;
+    text-align: right;
+    text-transform: uppercase;
+  }
+
+  .ocr-status.is-error {
+    color: #ff9db0;
+  }
+
   .action-bar {
     display: flex;
     align-items: center;
@@ -1655,7 +1802,7 @@
 
     .secondary-actions {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(4, 1fr);
     }
 
     .secondary-actions button {
@@ -1666,6 +1813,18 @@
 
     .secondary-actions button :global(svg) {
       display: none;
+    }
+
+    /* Four buttons across a phone leaves about 90px each, which "Upload image"
+       will not fit inside. The long label is swapped for a short one; the
+       title and aria-label still name the action. */
+    .ocr-button-label {
+      font-size: 0;
+    }
+
+    .ocr-button-label::after {
+      content: 'Image';
+      font-size: .53rem;
     }
   }
 </style>

@@ -51,7 +51,7 @@ export const NPC_PORTRAITS: Record<RaceName, NpcPortrait> = {
     color: publicAsset('autophage_plate.jpg'),
     depth: publicAsset('autophage_height.png'),
     depthRange: [0, 1],
-    npcName: 'Autophage',
+    npcName: 'John Autophage',
     usesFallback: false,
   },
 };
