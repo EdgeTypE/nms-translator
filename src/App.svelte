@@ -158,6 +158,7 @@ import { phrasebookLookup } from './lib/stores/lookup';
               bind:sourceText={draftText}
               bind:direction={draftDirection}
               onLookup={lookupWord}
+              onOpenNpc={() => navigate('npc')}
             />
           {:else}
             <PhrasebookView bind:selectedRace />

@@ -4,6 +4,8 @@
   import { alienData, translationEngine } from '../data';
   import { RACE_META } from '../races';
   import { conversationDraft } from '../stores/handoff';
+  import { dismissNpcPromo, npcPromoDismissed } from '../stores/promo';
+  import { getNpcPortrait } from '../npc/portraits';
   import type {
     RaceName,
     TranslationDirection,
@@ -16,6 +18,8 @@
   export let selectedRace: RaceName = 'Gek';
   /** Sends a word to the phrasebook when its ambiguous reading is clicked. */
   export let onLookup: (word: string) => void = () => undefined;
+  /** Opens the full-screen NPC dialogue view from the promo card. */
+  export let onOpenNpc: () => void = () => undefined;
   /** Bound to the router so the text survives real page navigations. */
   export let sourceText = '';
   export let direction: TranslationDirection = 'alien-to-english';
@@ -35,6 +39,9 @@
   $: raceEntries = translationEngine.getEntries(selectedRace);
   $: raceCount = raceEntries.length;
   $: signalEntries = pickSignalEntries(raceEntries);
+  // The promo card borrows the NPC view's own plate, so it always advertises the
+  // species currently selected rather than a fixed character.
+  $: npcPortrait = getNpcPortrait(selectedRace);
   $: sourceLanguage = direction === 'alien-to-english' ? selectedRace : 'English';
   $: targetLanguage = direction === 'alien-to-english' ? 'English' : selectedRace;
   $: matchPercent = translation?.coverage ?? 0;
@@ -460,6 +467,45 @@
           </div>
         {/if}
       </div>
+    {/if}
+
+    <!--
+      One-time invitation to the NPC dialogue view, parked in the slack between
+      the panels and the action bar. Hidden below 1280px, where that slack
+      collapses to zero and the page is already a scrolling layout.
+    -->
+    {#if !$npcPromoDismissed}
+      <aside class="npc-promo" aria-labelledby="npc-promo-title">
+        <button
+          class="npc-promo-dismiss"
+          type="button"
+          onclick={dismissNpcPromo}
+          aria-label="Hide this suggestion"
+          title="Hide"
+        >
+          <Icon name="x" size={15} />
+        </button>
+
+        <div
+          class="npc-promo-portrait"
+          role="img"
+          aria-label={npcPortrait.npcName}
+          style={`background-image: url("${npcPortrait.color}")`}
+        ></div>
+
+        <div class="npc-promo-copy">
+          <span class="eyebrow">Face to face</span>
+          <h2 id="npc-promo-title">Talk to {npcPortrait.npcName}</h2>
+          <p>
+            A full-screen dialogue view with live alien-to-English decoding. Type a reply and it is
+            encoded back into {selectedRace} speech.
+          </p>
+          <button class="npc-promo-cta" type="button" onclick={onOpenNpc}>
+            <Icon name="message" size={17} />
+            Start conversation
+          </button>
+        </div>
+      </aside>
     {/if}
 
     <div class="action-bar">
@@ -1214,6 +1260,109 @@
     white-space: nowrap;
   }
 
+  /* The slack between the panels and the action bar only exists from 1280px up
+     (measured: 225-541px there, 0px below). The card is sized to the worst case
+     measured with the unknown/ambiguous notices showing, 165px, so adding it
+     never lengthens the page. */
+  .npc-promo {
+    position: relative;
+    display: grid;
+    grid-template-columns: 128px minmax(0, 1fr);
+    gap: 20px;
+    align-items: center;
+    margin-top: 16px;
+    padding: 10px;
+    border: 1px solid rgba(116, 196, 212, .19);
+    background: linear-gradient(145deg, rgba(6, 14, 29, .76), rgba(3, 8, 19, .45));
+    clip-path: polygon(0 0, calc(100% - 20px) 0, 100% 20px, 100% 100%, 0 100%);
+  }
+
+  .npc-promo-dismiss {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    border: 0;
+    color: var(--text-dim);
+    background: transparent;
+    cursor: pointer;
+    transition: color 150ms ease, background-color 150ms ease;
+  }
+
+  .npc-promo-dismiss:hover {
+    color: var(--text-primary);
+    background: rgba(105, 202, 219, .09);
+  }
+
+  .npc-promo-portrait {
+    width: 128px;
+    /* Stretched to the copy column rather than fixed, so tightening the text can
+       never make the card taller. */
+    align-self: stretch;
+    min-height: 116px;
+    background-color: #060b16;
+    background-position: center 22%;
+    background-size: cover;
+    clip-path: polygon(0 0, 100% 0, 100% calc(100% - 18px), calc(100% - 18px) 100%, 0 100%);
+  }
+
+  .npc-promo-copy {
+    display: grid;
+    justify-items: start;
+    gap: 5px;
+    min-width: 0;
+  }
+
+  /* Reuses the stage's .eyebrow typography, lifted to the accent the mockup
+     calls for. */
+  .npc-promo-copy .eyebrow {
+    color: var(--signal-yellow);
+  }
+
+  .npc-promo-copy h2 {
+    margin: 0;
+    font-size: 1.14rem;
+  }
+
+  /* The project has no global margin reset, so this paragraph would otherwise
+     pick up the browser default 1em top and bottom margin - 28px that pushed
+     the card past the height budget. */
+  .npc-promo-copy p {
+    max-width: 62ch;
+    margin: 0;
+    color: var(--text-muted);
+    font-family: var(--font-body);
+    font-size: .86rem;
+    line-height: 1.35;
+  }
+
+  .npc-promo-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    min-height: 36px;
+    margin: 0;
+    padding: 0 18px;
+    border: 1px solid rgba(105, 202, 219, .5);
+    color: var(--signal-cyan);
+    background: transparent;
+    font-family: var(--font-body);
+    font-size: .72rem;
+    font-weight: 600;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: border-color 150ms ease, background-color 150ms ease;
+  }
+
+  .npc-promo-cta:hover {
+    border-color: var(--signal-cyan);
+    background: rgba(105, 202, 219, .08);
+  }
+
   .action-bar {
     display: flex;
     align-items: center;
@@ -1314,6 +1463,15 @@
   @keyframes pending-sweep {
     from { background-position: 220% 0; }
     to { background-position: -120% 0; }
+  }
+
+  /* Below 1280px the stage has no slack left: the stacked panels already
+     exceed the viewport, so the card has nowhere to sit and would only make the
+     page taller. display:none also keeps it out of the accessibility tree. */
+  @media (max-width: 1279px) {
+    .npc-promo {
+      display: none;
+    }
   }
 
   @media (max-width: 1180px) {
