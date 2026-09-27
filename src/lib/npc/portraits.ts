@@ -1,3 +1,4 @@
+import { publicAsset } from '../assets';
 import type { RaceName } from '../types';
 
 export interface NpcPortrait {
@@ -7,8 +8,6 @@ export interface NpcPortrait {
   npcName: string;
   usesFallback: boolean;
 }
-
-const publicAsset = (file: string) => `${import.meta.env.BASE_URL}${file}`;
 
 /**
  * Colour = UI-inpainted plate, depth = decoded grayscale height map.

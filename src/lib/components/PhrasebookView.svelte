@@ -359,6 +359,8 @@
     justify-content: space-between;
   }
 
+  /* Not a tint: the crests are full colour PNGs. This only feeds the glow
+     inside RaceGlyph, and the species count text beside it. */
   .species-icon {
     color: var(--race-accent);
   }
@@ -577,15 +579,17 @@
     background: var(--signal-yellow);
   }
 
-  .species-filter :global(svg),
+  /* Lifts the row content above the ::before wash. Targeted by class, not by
+     tag: the crest is an <img> now, and a :global(svg) selector stopped
+     matching when it changed, which let the wash darken the selected species
+     crest. TranslateView protects the same way, via .race-icon.
+     No colour is set here: the crests are full colour PNGs and at this size
+     their glow is off, so it would have had no effect anyway. */
+  .species-filter :global(.race-glyph),
   .species-filter button > span,
   .species-filter button > i {
     position: relative;
     z-index: 1;
-  }
-
-  .species-filter :global(svg) {
-    color: var(--race-accent);
   }
 
   .species-filter button > span {

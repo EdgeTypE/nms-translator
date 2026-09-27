@@ -32,7 +32,6 @@
   let copyTimer: number | undefined;
   let handoffReady = false;
 
-  $: raceMeta = RACE_META[selectedRace];
   $: raceEntries = translationEngine.getEntries(selectedRace);
   $: raceCount = raceEntries.length;
   $: signalEntries = pickSignalEntries(raceEntries);
@@ -334,14 +333,6 @@
       <div>
         <span class="eyebrow">Active channel / {String(raceEntries.length).padStart(4, '0')} indexed entries</span>
         <h1 id="translator-title">{selectedRace} Translation Matrix</h1>
-      </div>
-      <div class="channel-state" style={`--race-accent: ${raceMeta.accent}`}>
-        <RaceGlyph race={selectedRace} size={47} />
-        <span>
-          <small>Signal profile</small>
-          <strong>{raceMeta.speechModel}</strong>
-        </span>
-        <i></i>
       </div>
     </header>
 
@@ -674,6 +665,7 @@
     letter-spacing: .12em;
   }
 
+  /* Only feeds the crest glow now, not a stroke: the crests are full colour. */
   .race-icon {
     color: var(--race-accent);
   }
@@ -800,51 +792,6 @@
 
   .stage-header h1 {
     font-size: clamp(1.45rem, 2.2vw, 2.15rem);
-  }
-
-  .channel-state {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    min-width: 220px;
-    padding: 8px 14px 8px 10px;
-    border: 1px solid rgba(112, 193, 209, .17);
-    color: var(--race-accent);
-    background: rgba(5, 13, 27, .45);
-    clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
-  }
-
-  .channel-state span {
-    display: flex;
-    flex-direction: column;
-    line-height: 1;
-  }
-
-  .channel-state small {
-    color: var(--text-dim);
-    font-family: var(--font-body);
-    font-size: .66rem;
-    letter-spacing: .15em;
-    text-transform: uppercase;
-  }
-
-  .channel-state strong {
-    margin-top: 7px;
-    color: var(--text-primary);
-    font-family: var(--font-heading);
-    font-size: .78rem;
-    font-weight: 400;
-    letter-spacing: .11em;
-    text-transform: uppercase;
-  }
-
-  .channel-state > i {
-    width: 6px;
-    height: 6px;
-    margin-left: auto;
-    border-radius: 50%;
-    background: var(--race-accent);
-    box-shadow: 0 0 8px var(--race-accent);
   }
 
   .translation-grid {
@@ -1525,16 +1472,6 @@
 
     .stage-header h1 {
       font-size: 1.22rem;
-    }
-
-    .channel-state {
-      min-width: 0;
-      padding: 5px;
-    }
-
-    .channel-state span,
-    .channel-state > i {
-      display: none;
     }
 
     .translation-panel {

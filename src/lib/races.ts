@@ -1,3 +1,4 @@
+import { publicAsset } from './assets';
 import type { RaceName } from './types';
 
 export interface RaceMeta {
@@ -60,4 +61,20 @@ export const NPC_ACCENT: Record<RaceName, string> = {
   "Vy'keen": '#ff4826',
   Atlas: '#ff2b2b',
   Autophage: '#b4d2ff',
+};
+
+/**
+ * Species crest used wherever an alien glyph is drawn. These are full colour
+ * PNGs, so unlike the old inline SVGs they cannot be tinted with `currentColor`;
+ * each crest carries its own species colour.
+ *
+ * The map is explicit rather than derived: the file names drop the apostrophe,
+ * so "Vy'keen" is race.vykeen.png, not a slug of the race name.
+ */
+export const RACE_ICON: Record<RaceName, string> = {
+  Gek: publicAsset('race.gek.png'),
+  Korvax: publicAsset('race.korvax.png'),
+  "Vy'keen": publicAsset('race.vykeen.png'),
+  Atlas: publicAsset('race.atlas.png'),
+  Autophage: publicAsset('race.autophage.png'),
 };

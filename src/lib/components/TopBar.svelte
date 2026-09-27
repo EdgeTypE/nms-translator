@@ -4,7 +4,6 @@
   import { pathFor } from '../routing';
   import type { ViewId } from '../types';
   import Icon from './Icon.svelte';
-  import RaceGlyph from './RaceGlyph.svelte';
 
   export let activeView: ViewId;
   /** Set by the router; intercepts clicks for instant SPA navigation. */
@@ -29,7 +28,29 @@
     }}
     aria-label="Open translator"
   >
-    <span class="brand-mark"><RaceGlyph race="Atlas" size={42} strokeWidth={2} /></span>
+    <!--
+      The brand mark keeps the original line-art Atlas lozenge rather than the
+      species crest PNG: it is the site logo, not a species indicator, and the
+      crest art is meant to be heavier. Swap this one span when the real logo
+      lands; the species crests live in RaceGlyph.svelte.
+    -->
+    <span class="brand-mark">
+      <svg
+        width="42"
+        height="42"
+        viewBox="0 0 64 64"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M32 6 46 32 32 58 18 32Z" />
+        <path d="M32 18 39 32l-7 14-7-14Z" />
+        <circle cx="32" cy="32" r="2" fill="currentColor" stroke="none" />
+      </svg>
+    </span>
     <span class="brand-copy">
       <strong>No Man's Sky</strong>
       <span>Translator</span>
@@ -53,14 +74,6 @@
       </a>
     {/each}
   </nav>
-
-  <div class="system-status">
-    <span class="status-orbit"><i></i></span>
-    <span>
-      <small>Local archive</small>
-      <strong>Online</strong>
-    </span>
-  </div>
 </header>
 
 <div class="status-strip" aria-label="Archive sync status">
@@ -77,7 +90,9 @@
     position: relative;
     z-index: 20;
     display: grid;
-    grid-template-columns: minmax(250px, 1fr) auto minmax(210px, 1fr);
+    /* The third track balances the empty right side so the nav stays centred
+       now that the online-status block is gone. */
+    grid-template-columns: minmax(250px, 1fr) auto minmax(250px, 1fr);
     align-items: stretch;
     min-height: 82px;
     border-bottom: 2px solid var(--signal-yellow);
@@ -184,65 +199,6 @@
     transform: scaleX(1);
   }
 
-  .system-status {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 11px;
-    padding: 0 32px;
-    color: var(--signal-cyan);
-    text-transform: uppercase;
-  }
-
-  .system-status > span:last-child {
-    display: flex;
-    flex-direction: column;
-    line-height: 1.05;
-  }
-
-  .system-status small {
-    color: var(--text-dim);
-    font-size: .57rem;
-    letter-spacing: .22em;
-  }
-
-  .system-status strong {
-    margin-top: 6px;
-    font-size: .7rem;
-    font-weight: 600;
-    letter-spacing: .18em;
-  }
-
-  .status-orbit {
-    position: relative;
-    display: block;
-    width: 27px;
-    height: 27px;
-    border: 1px solid rgba(93, 221, 235, .45);
-    border-radius: 50%;
-  }
-
-  .status-orbit::before {
-    content: '';
-    position: absolute;
-    inset: 7px;
-    border-radius: 50%;
-    background: var(--signal-cyan);
-    box-shadow: 0 0 9px var(--signal-cyan);
-  }
-
-  .status-orbit i {
-    position: absolute;
-    left: 50%;
-    top: -3px;
-    width: 4px;
-    height: 4px;
-    border-radius: 50%;
-    background: #fff;
-    transform-origin: 0 16px;
-    animation: orbit 4s linear infinite;
-  }
-
   .status-strip {
     position: relative;
     z-index: 19;
@@ -284,13 +240,9 @@
     background: rgba(147, 167, 180, .45);
   }
 
-  @keyframes orbit {
-    to { transform: rotate(360deg); }
-  }
-
   @media (max-width: 1040px) {
     .topbar {
-      grid-template-columns: auto 1fr auto;
+      grid-template-columns: 1fr auto 1fr;
     }
 
     .brand {
@@ -304,15 +256,6 @@
     .main-nav a {
       min-width: auto;
       padding: 0 16px;
-    }
-
-    .system-status {
-      padding: 0 18px;
-    }
-
-    .system-status small,
-    .system-status > span:last-child {
-      display: none;
     }
 
     .status-strip {
@@ -354,10 +297,6 @@
       min-width: 106px;
       padding: 0 12px;
       font-size: .66rem;
-    }
-
-    .system-status {
-      display: none;
     }
 
     .status-strip {
