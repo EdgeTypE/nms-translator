@@ -33,6 +33,83 @@ const run = (source: string, direction: 'alien-to-english' | 'english-to-alien' 
     scope: summariseScope(manifest, words, gek),
   });
 
+/** Real surfaces, so the weighting is exercised against the shipped data. */
+const sharedSurface = [...dictionary].find((s) => gek.bySurface.has(s))!;
+const generatedSurface = gek.surfaces.find((s) => !dictionary.has(s))!;
+/** A row with more than one candidate, i.e. a surface with several readings. */
+const ambiguousSurface = gek.rows
+  .find((row) => (row.trim().split(/\s+/).length - 1) / 2 > 1)!
+  .split(' ')[0]!;
+const missSurface = 'zzqqxyw';
+
+describe('confidence is weighted, not a plain match ratio', () => {
+  it('gives a dictionary word a full point', () => {
+    expect(run(sharedSurface).coverage).toBe(100);
+  });
+
+  it('takes a fifth off a word only the index knows', () => {
+    const result = run(generatedSurface);
+    expect(result.unknownTokenCount).toBe(0);
+    expect(result.segments[0]?.badge).toBe('generated');
+    expect(result.coverage).toBe(80);
+  });
+
+  it('takes two fifths off an ambiguous word', () => {
+    // Lower than green on purpose: a green word has one right answer, an
+    // ambiguous one is a pick among several.
+    const result = run(ambiguousSurface);
+    expect(result.segments[0]?.status).toBe('ambiguous');
+    expect(result.coverage).toBe(60);
+    expect(result.coverage).toBeLessThan(run(generatedSurface).coverage);
+  });
+
+  it('counts a miss as nothing', () => {
+    expect(run(missSurface).coverage).toBe(0);
+  });
+
+  it('leaves a line with no green and no amber untouched', () => {
+    // This is the guard against the weighting leaking into plain lines: four
+    // dictionary words still read 100.
+    const line = [sharedSurface, ...gek.surfaces.filter((s) => dictionary.has(s)).slice(1, 4)].join(' ');
+    expect(run(line).coverage).toBe(100);
+  });
+
+  it('averages the weights across the whole line', () => {
+    // 2 shared + 1 generated + 1 miss over 4 words: (10 + 10 + 8 + 0) / 40.
+    const result = run([sharedSurface, generatedSurface, missSurface, sharedSurface].join(' '));
+    expect(result.sourceTokenCount).toBe(4);
+    expect(result.matchedTokenCount).toBe(3);
+    expect(result.coverage).toBe(70);
+  });
+
+  it('dips further as more of the line is green', () => {
+    const green = gek.surfaces.filter((s) => !dictionary.has(s) && gek.bySurface.get(s)!.length === 1);
+    // 1 shared + 1 green -> 18/20;  1 shared + 2 green -> 26/30;  2 green -> 16/20.
+    expect(run([sharedSurface, green[0]!].join(' ')).coverage).toBe(90);
+    expect(run([sharedSurface, green[0]!, green[1]!].join(' ')).coverage).toBe(87);
+    expect(run([green[0]!, green[1]!].join(' ')).coverage).toBe(80);
+  });
+
+  it('ignores punctuation and spacing in the denominator', () => {
+    // Three words, one of them green: (10 + 10 + 8) / 30.
+    const result = run(`${sharedSurface}, ${generatedSurface} ! ${sharedSurface}`);
+    expect(result.sourceTokenCount).toBe(3);
+    expect(result.coverage).toBe(93);
+  });
+
+  it('is zero for an empty line rather than a division by zero', () => {
+    expect(run('   ').coverage).toBe(0);
+  });
+
+  it('keeps the match count factual, separate from the score', () => {
+    // 3 of 4 words resolved, but only 70% is worth trusting.
+    const result = run([sharedSurface, generatedSurface, missSurface, sharedSurface].join(' '));
+    expect(result.matchedTokenCount).toBe(3);
+    expect(result.sourceTokenCount).toBe(4);
+    expect(result.coverage).toBe(70);
+  });
+});
+
 describe('translateWithIndex, alien to English', () => {
   it('resolves a real surface and keeps the order', () => {
     const result = run('pupkessap zzzqqq');
@@ -226,16 +303,21 @@ describe('every species produces a usable result', () => {
       const dict = new Set(
         alienData.entries.filter((e) => e.race === entry.name).map((e) => e.surface.toLowerCase()),
       );
-      const result = translateWithIndex(
-        index,
-        words,
-        index.surfaces[0]!,
-        entry.name as never,
-        'alien-to-english',
-        { dictionary: dict, scope: summariseScope(manifest, words, index) },
-      );
-      expect(result.unknownTokenCount).toBe(0);
-      expect(result.coverage).toBe(100);
+      const options = { dictionary: dict, scope: summariseScope(manifest, words, index) };
+      const translate = (source: string) =>
+        translateWithIndex(index, words, source, entry.name as never, 'alien-to-english', options);
+
+      // A word the dictionary also holds earns a full point.
+      const shared = [...dict].find((surface) => index.bySurface.has(surface));
+      expect(shared, `${entry.name} has a shared word`).toBeDefined();
+      expect(translate(shared!).coverage).toBe(100);
+
+      // A word only the index knows still resolves, but at 80%.
+      const generated = index.surfaces.find((surface) => !dict.has(surface))!;
+      const generatedResult = translate(generated);
+      expect(generatedResult.unknownTokenCount).toBe(0);
+      expect(generatedResult.segments[0]?.badge).toBe('generated');
+      expect(generatedResult.coverage).toBe(80);
     });
   }
 });

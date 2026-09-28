@@ -86,6 +86,15 @@ export interface TranslationResult {
   matchedTokenCount: number;
   unknownTokenCount: number;
   ambiguousTokenCount: number;
+  /**
+   * How much of the line is worth trusting, as a whole percentage.
+   *
+   * Two producers fill this and they do not mean quite the same thing. The
+   * dictionary engine reports the plain match ratio. The word index reports a
+   * weighted score instead, because a word the game generated cannot be checked
+   * against the dictionary and an ambiguous word is a pick among several, so
+   * neither earns a full point. See word-index/translate.ts.
+   */
   coverage: number;
   unknownTokens: string[];
   ambiguousMatches: AmbiguousMatch[];

@@ -54,6 +54,54 @@ export interface IndexedTranslation extends TranslationResult {
   scope: ScopeSummary | null;
 }
 
+/**
+ * How much each kind of word counts toward the confidence figure, in tenths.
+ *
+ * A word is not equally trustworthy just because it resolved. Four cases:
+ *
+ *   dictionary  10  in the dictionary, so the reading can be checked
+ *   generated    8  one definite reading, but the game minted it for this
+ *                   sentence and it cannot be looked up or reused
+ *   ambiguous    6  several readings, and this is the one that was picked
+ *   unknown      0  nothing at all
+ *
+ * Generated sits above ambiguous on purpose: a green word has a single correct
+ * answer that just cannot be verified in the dictionary, while an amber one is
+ * a choice between several plausible answers. Both are marked with a dotted
+ * underline for the same reason.
+ *
+ * The values are tenths rather than fractions so the sum is exact and the
+ * division is rounded once, instead of accumulating float error across a line.
+ */
+const CONFIDENCE_TENTHS = {
+  dictionary: 10,
+  generated: 8,
+  ambiguous: 6,
+  unknown: 0,
+} as const;
+
+function confidenceTenths(segment: IndexedSegment): number {
+  if (segment.status === 'unknown') return CONFIDENCE_TENTHS.unknown;
+  if (segment.status === 'ambiguous') return CONFIDENCE_TENTHS.ambiguous;
+  // A resolved word with no badge would mean the dictionary engine answered,
+  // which only happens before the species file lands; treat it as dictionary
+  // backed so the number does not swing on the fallback.
+  return segment.badge === 'generated' ? CONFIDENCE_TENTHS.generated : CONFIDENCE_TENTHS.dictionary;
+}
+
+/**
+ * The share of the line that is worth trusting, as a whole percentage.
+ *
+ * This is a weighted score rather than a plain match ratio: a line of four words
+ * with one green and one red reads 70%, not 75%. Punctuation and the spacing
+ * between words are not part of the denominator.
+ */
+function confidencePercent(meaning: IndexedSegment[]): number {
+  if (meaning.length === 0) return 0;
+  const tenths = meaning.reduce((sum, segment) => sum + confidenceTenths(segment), 0);
+  return Math.round((tenths / (meaning.length * 10)) * 100);
+}
+
 export interface TranslateOptions {
   dictionary: ReadonlySet<string>;
   /** Hides generated words, which have no learning group. */
@@ -282,6 +330,7 @@ export function translateWithIndex(
   const matched = meaning.filter((segment) => segment.status === 'translated');
   const unknown = meaning.filter((segment) => segment.status === 'unknown');
   const ambiguous = meaning.filter((segment) => segment.status === 'ambiguous');
+  const confidence = confidencePercent(meaning);
 
   return {
     source,
@@ -295,7 +344,7 @@ export function translateWithIndex(
     matchedTokenCount: matched.length + ambiguous.length,
     unknownTokenCount: unknown.length,
     ambiguousTokenCount: ambiguous.length,
-    coverage: meaning.length === 0 ? 0 : Math.round(((matched.length + ambiguous.length) / meaning.length) * 100),
+    coverage: confidence,
     unknownTokens: unknown.map((segment) => segment.source),
     ambiguousMatches: ambiguous.map((segment) => ({
       source: segment.source,
