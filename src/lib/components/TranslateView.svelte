@@ -7,10 +7,20 @@
   import { dismissNpcPromo, npcPromoDismissed } from '../stores/promo';
   import { getNpcPortrait } from '../npc/portraits';
   import { releaseOcrWorker, scanScreenshot } from '../ocr';
+  import { getManifest, getWordList, loadRaceIndex, peekRaceIndex } from '../word-index/load';
+  import { dictionarySurfacesFor } from '../word-index/badges';
+  import { summariseScope } from '../word-index/scope';
+  import {
+    collectSuggestions,
+    translateWithIndex,
+    type IndexedTranslation,
+  } from '../word-index/translate';
+  import type { PreparedIndex } from '../word-index/lookup';
   import type {
     RaceName,
     TranslationDirection,
     TranslationResult,
+    TranslationSegment,
     AlienEntry,
   } from '../types';
   import Icon from './Icon.svelte';
@@ -36,10 +46,24 @@
   let autoTranslateTimer: number | undefined;
   let copyTimer: number | undefined;
   let handoffReady = false;
+  /** Guards the species file load until the component is on screen. */
+  let mounted = false;
   let fileInput: HTMLInputElement;
   let scanning = false;
   let scanMessage = '';
   let scanFailed = false;
+
+  /**
+   * The reverse word index. Its species file is fetched the first time a species
+   * is used and kept afterwards, so switching back and forth costs nothing. Until
+   * it arrives the dictionary engine below still answers, so the panel is never
+   * empty.
+   */
+  let wordIndex: PreparedIndex | null = null;
+  let indexLoading = false;
+  let indexFailed = false;
+
+  const dictionaryFor = (race: RaceName) => dictionarySurfacesFor(race);
 
   /** The source box is capped, so a long dialogue line has to be trimmed. */
   const SOURCE_MAX = 280;
@@ -111,6 +135,15 @@
   $: sourceLanguage = direction === 'alien-to-english' ? selectedRace : 'English';
   $: targetLanguage = direction === 'alien-to-english' ? 'English' : selectedRace;
   $: matchPercent = translation?.coverage ?? 0;
+
+  /**
+   * The word index resolves more of a line than the dictionary, and can say
+   * which words are learnable and what to suggest for a genuine miss. Those two
+   * are derived from the segments, so they follow the direction and the species
+   * without any extra state.
+   */
+  $: indexResult = wordIndex && 'scope' in (translation ?? {}) ? (translation as IndexedTranslation) : null;
+  $: indexedSuggestions = indexResult ? collectSuggestions(indexResult) : [];
   // Keep the shared conversation buffer in sync once this view is live.
   // The guard stops the first reactive pass (which runs before onMount) from
   // clobbering the store with the empty initial value.
@@ -127,6 +160,7 @@
       sourceText = createExample(selectedRace, false, direction);
     }
     handoffReady = true;
+    mounted = true;
     translation = translateNow();
     // A pasted screenshot is treated the same as a picked file. Only image
     // pastes are handled, so typing and pasting text is unaffected.
@@ -204,10 +238,73 @@
     return nextDirection === 'alien-to-english' ? entry.surface : entry.english;
   }
 
-  function translateNow() {
+  function translateNow(): TranslationResult | null {
     if (!sourceText.trim()) return null;
+
+    // The index resolves strictly more than the dictionary, so when it is ready
+    // it is the answer. The dictionary engine stays as the fallback for the
+    // moment before the species file has finished loading.
+    const indexed = translateFromIndex();
+    if (indexed) return indexed;
     return translationEngine.translate(sourceText, direction, selectedRace);
   }
+
+  /** The index backed translation, or null while the species file is absent. */
+  function translateFromIndex(): TranslationResult | null {    if (!wordIndex) return null;
+    const words = getWordList();
+    const manifest = getManifest();
+    if (!words || !manifest) return null;
+
+    const scope = summariseScope(manifest, words, wordIndex);
+    return translateWithIndex(wordIndex, words, sourceText, selectedRace, direction, {
+      dictionary: dictionaryFor(selectedRace),
+      scope,
+    });
+  }
+
+  /**
+   * Which source produced a word. `generated` means the index resolved it but
+   * the dictionary does not hold it, so the game invented it for this sentence;
+   * `dictionary` means a player could go and learn it. Anything else, including
+   * the engine fallback, comes back null and stays in the default colour.
+   */
+  function badgeOf(segment: TranslationSegment): 'dictionary' | 'generated' | null {
+    if (!indexResult) return null;
+    return (segment as IndexedTranslation['segments'][number]).badge ?? null;
+  }
+
+  /**
+   * Pulls in the species file on first use. Safe to call repeatedly: the loader
+   * returns the cached index and never re-requests the script.
+   */
+  async function ensureWordIndex(race: RaceName): Promise<void> {
+    const cached = peekRaceIndex(race);
+    if (cached) {
+      if (wordIndex !== cached) {
+        wordIndex = cached;
+        requestTranslation();
+      }
+      return;
+    }
+
+    indexLoading = true;
+    try {
+      const loaded = await loadRaceIndex(race);
+      if (loaded) {
+        wordIndex = loaded;
+        indexFailed = false;
+        requestTranslation();
+      } else {
+        indexFailed = true;
+      }
+    } finally {
+      indexLoading = false;
+    }
+  }
+
+  // Load the file for whichever species is selected. Runs after mount so the
+  // first paint is not held up by a ~100 KB script.
+  $: if (mounted) void ensureWordIndex(selectedRace);
 
   function cancelAutoTranslate() {
     if (autoTranslateTimer) {
@@ -477,11 +574,20 @@
             </div>
           {:else if translation}
             <div class="result-copy" class:stale={isPending}>
+              <!--
+                A word the language does not hold is echoed back exactly as typed
+                and marked red, so the miss is visible in place instead of a
+                placeholder taking its position. A word the index resolved but the
+                dictionary does not hold is green: it was minted for this sentence
+                and cannot be looked up later.
+              -->
               {#each translation.segments as segment}
+                {@const fromIndex = segment.status !== 'unknown' && badgeOf(segment) === 'generated'}
                 {#if segment.status === 'ambiguous'}
                   <button
                     type="button"
                     class="ambiguous-lookup"
+                    class:from-index={fromIndex}
                     onclick={() => onLookup(segment.source)}
                     title={segment.alternatives.length ? `Alternatives: ${segment.alternatives.join(', ')}` : undefined}
                     aria-label={`Look up "${segment.source}" in the phrasebook`}
@@ -489,7 +595,8 @@
                 {:else}
                   <span
                     class:unknown={segment.status === 'unknown'}
-                    title={segment.alternatives.length ? `Alternatives: ${segment.alternatives.join(', ')}` : undefined}
+                    class:from-index={fromIndex}
+                    title={segment.status === 'unknown' ? 'Not in the word list for this species' : fromIndex ? 'Resolved by the word index. The dictionary does not hold it, so the game minted it for this sentence.' : segment.alternatives.length ? `Alternatives: ${segment.alternatives.join(', ')}` : undefined}
                   >{segment.output}</span>
                 {/if}
               {/each}
@@ -538,6 +645,51 @@
           </div>
         {/if}
       </div>
+    {/if}
+
+    <!--
+      The near misses. Deliberately separated and labelled, because a prefix
+      match is a guess and must not read like a translation.
+    -->
+    {#if indexedSuggestions.length > 0}
+      <div class="index-notes">
+        {#if indexedSuggestions.length > 0}
+          <div class="suggestions">
+            <span class="suggestions-label">
+              <Icon name="info" size={15} />
+              Suggestion only, not a translation
+            </span>
+            <ul>
+              {#each indexedSuggestions as item (item.source + item.suggestion.surface)}
+                <li>
+                  <code>{item.source}</code>
+                  <span class="arrow" aria-hidden="true">→</span>
+                  <span class="candidates">
+                    <button
+                      type="button"
+                      onclick={() => onLookup(item.suggestion.surface)}
+                      title={item.suggestion.readings
+                        .map((reading) => reading.word)
+                        .join(', ')}
+                    >{item.suggestion.surface}</button>
+                  </span>
+                  {#if item.suggestion.readings[0]}
+                    <small>{item.suggestion.readings[0].word}</small>
+                  {/if}
+                </li>
+              {/each}
+            </ul>
+          </div>
+        {/if}
+      </div>
+    {/if}
+
+    {#if indexLoading}
+      <p class="index-loading">Loading the {selectedRace} word list…</p>
+    {:else if indexFailed}
+      <p class="index-loading is-error">
+        The {selectedRace} word list could not be loaded, so the smaller dictionary is being used.
+      </p>
     {/if}
 
     <!--
@@ -1166,19 +1318,31 @@
     opacity: .58;
   }
 
+  /* Every marker in the output line draws its underline the same way, so the
+     dots line up on one baseline instead of two different heights. Previously
+     the unknown word used text-decoration and the ambiguous button used
+     border-bottom, which is why they sat at different depths. The green index
+     word joins them: a word from any source other than the dictionary is
+     underlined, so the underline alone already means "not a plain dictionary
+     word". */
+  .result-copy .unknown,
+  .result-copy .from-index,
+  .result-copy .ambiguous-lookup {
+    text-decoration: underline dotted;
+    text-decoration-thickness: 1px;
+    text-underline-offset: .22em;
+  }
+
   .result-copy span.unknown {
     color: #ff8f82;
-    text-decoration: underline dotted rgba(255, 143, 130, .55);
-    text-underline-offset: 4px;
+    text-decoration-color: rgba(255, 143, 130, .55);
   }
 
   /* Was a span; now a button so the reading can be looked up. It shows the
      chosen meaning but looks up the SOURCE word, because that is the token
      that actually carries several meanings: searching the phrasebook by the
      surface lists every row sharing it, so the alternates appear side by side.
-     Kept inline so it sits on the same baseline as the surrounding words, and
-     styled to the previous yellow dotted underline so the meaning is
-     unchanged. */
+     Kept inline so it sits on the same baseline as the surrounding words. */
   .result-copy .ambiguous-lookup {
     display: inline;
     margin: 0;
@@ -1187,18 +1351,31 @@
     color: #f5d479;
     background: none;
     font: inherit;
-    border-bottom: 1px dotted rgba(245, 212, 121, .55);
     cursor: pointer;
+    transition: color 150ms ease, text-decoration-color 150ms ease;
   }
 
   .result-copy .ambiguous-lookup:hover {
     color: #ffe9a3;
-    border-bottom-style: solid;
+    text-decoration-style: solid;
   }
 
   .result-copy .ambiguous-lookup:focus-visible {
     outline: 2px solid #f5d479;
     outline-offset: 2px;
+  }
+
+  /* A word the index resolved but the dictionary does not hold: the game minted
+     it for this sentence, so it is not a word a player can go and learn. Green
+     is the point, so this comes last and wins over the amber above - an
+     ambiguous index word is still an index word. */
+  .result-copy .from-index {
+    color: #7ce4a4;
+    text-decoration-color: rgba(124, 228, 164, .55);
+  }
+
+  .result-copy .from-index.ambiguous-lookup:hover {
+    color: #a4f0c4;
   }
 
   .empty-output {
@@ -1508,6 +1685,105 @@
 
   .ocr-status.is-error {
     color: #ff9db0;
+  }
+
+  /* ---- Word index notes -------------------------------------------------
+     Where a word came from is reported as a count in plain text rather than a
+     mark after every word: the decoded line stays readable, and the distinction
+     is still stated. */
+  .index-notes {
+    display: grid;
+    gap: 10px;
+    margin-top: 14px;
+  }
+
+  .suggestions {
+    padding: 12px 14px;
+    border: 1px solid rgba(105, 202, 219, .22);
+    background: rgba(105, 202, 219, .04);
+  }
+
+  .suggestions-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    color: var(--signal-cyan);
+    font-family: var(--font-body);
+    font-size: .66rem;
+    font-weight: 600;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+  }
+
+  .suggestions ul {
+    display: grid;
+    gap: 7px;
+    margin: 10px 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .suggestions li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--font-body);
+    font-size: .74rem;
+  }
+
+  .suggestions code {
+    color: var(--text-muted);
+    font-size: .72rem;
+  }
+
+  .suggestions .arrow {
+    color: var(--text-dim);
+  }
+
+  .suggestions .candidates {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  /* A suggestion is a clickable lookup, but it is never styled like the decoded
+     output above: no cyan, so it cannot be mistaken for a translation. */
+  .suggestions .candidates button {
+    margin: 0;
+    padding: 2px 8px;
+    border: 1px solid rgba(105, 202, 219, .3);
+    background: transparent;
+    color: var(--text-muted);
+    font-family: var(--font-body);
+    font-size: .72rem;
+    cursor: pointer;
+    transition: border-color 150ms ease, color 150ms ease;
+  }
+
+  .suggestions .candidates button:hover {
+    border-color: var(--signal-cyan);
+    color: var(--signal-cyan);
+  }
+
+  .suggestions small {
+    color: var(--text-dim);
+    font-size: .68rem;
+  }
+
+  .index-loading {
+    margin: 12px 0 0;
+    color: var(--text-dim);
+    font-family: var(--font-body);
+    font-size: .68rem;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+
+  .index-loading.is-error {
+    color: #ff9db0;
+    letter-spacing: 0;
+    text-transform: none;
   }
 
   .action-bar {

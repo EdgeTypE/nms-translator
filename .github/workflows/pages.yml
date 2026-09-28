@@ -41,6 +41,11 @@ jobs:
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
+        with:
+          # Pages may not be switched on for this repository yet. Without this
+          # the step fails with "Get Pages site failed / Not Found" instead of
+          # turning it on, which needs the pages: write permission declared above.
+          enablement: true
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

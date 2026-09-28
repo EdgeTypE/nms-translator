@@ -14,6 +14,12 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
+/**
+ * Reverse word-index files loaded into every page. manifest.js first: it names
+ * the per-species files, so the loader needs it before the first race is picked.
+ */
+const WORD_INDEX_BOOTSTRAP = ['manifest.js', 'words.js'];
+
 /** Public origin, overridable for forks/deployments. */
 const SITE_ORIGIN = (process.env.VITE_SITE_ORIGIN ?? 'https://nms-translator.pages.dev')
   .replace(/\/+$/, '');
@@ -120,6 +126,14 @@ function renderPage(page, allPages) {
       `    <link rel="preload" href="/fonts/${font}" as="font" type="font/woff2" crossorigin />`,
   ).join('\n');
 
+  // The reverse word index. Both files assign onto window.NMS_ALIEN_INDEX rather
+  // than exporting a module, so they load as plain classic scripts and land
+  // before the app boots. Only the per-species files are fetched on demand, when
+  // the visitor picks a race.
+  const wordIndex = WORD_INDEX_BOOTSTRAP.map(
+    (file) => `    <script src="/data/alien-word-index/${file}"></script>`,
+  ).join('\n');
+
   return `<!doctype html>
 <html lang="en">
   <head>
@@ -144,6 +158,7 @@ ${NOSCRIPT_STYLE}  </head>
   <body>
 ${noscriptBlock(page, allPages)}
     <div id="app"></div>
+${wordIndex}
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
