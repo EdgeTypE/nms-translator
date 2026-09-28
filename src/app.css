@@ -210,55 +210,50 @@ select {
 .site-footer {
   position: relative;
   z-index: 10;
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
+  justify-content: center;
+  gap: 6px 18px;
   min-height: 29px;
-  padding: 0 32px;
+  padding: 6px 32px;
   border-top: 1px solid rgba(112, 193, 209, .12);
   color: rgba(147, 167, 180, .7);
   background: rgba(2, 6, 14, .78);
   font-family: var(--font-body);
   font-size: .62rem;
   letter-spacing: .12em;
+  text-align: center;
   text-transform: uppercase;
 }
 
-.site-footer > span:last-child {
-  text-align: right;
-}
-
-.footer-center {
-  display: flex;
+/* Repo link. The URL stays sentence-case (the footer uppercases everything
+   else) so the address reads the way it is typed. */
+.footer-github {
+  display: inline-flex;
   align-items: center;
-  gap: 5px;
-  color: rgba(153, 172, 182, .55);
+  gap: 6px;
+  color: rgba(147, 167, 180, .7);
+  text-decoration: none;
+  text-transform: none;
+  letter-spacing: .04em;
+  white-space: nowrap;
+  transition: color .16s ease;
 }
 
-.footer-center kbd {
-  display: inline-grid;
-  place-items: center;
-  min-width: 20px;
-  height: 16px;
-  padding: 0 4px;
-  border: 1px solid rgba(112, 193, 209, .22);
-  color: rgba(180, 198, 208, .8);
-  background: rgba(255, 255, 255, .02);
-  font-family: var(--font-body);
-  font-size: .58rem;
-  text-transform: uppercase;
+.footer-github .icon {
+  opacity: .7;
+  transition: opacity .16s ease;
 }
 
-.footer-center b {
-  font-weight: 400;
+.footer-github:hover,
+.footer-github:focus-visible {
+  color: rgba(112, 193, 209, .95);
 }
 
-.footer-center i {
-  width: 3px;
-  height: 3px;
-  margin: 0 6px;
-  border-radius: 50%;
-  background: rgba(255, 216, 75, .45);
+.footer-github:hover .icon,
+.footer-github:focus-visible .icon {
+  opacity: 1;
 }
 
 /* Custom pointer. Deliberately pixel-identical to the NPC dialogue reticle in
@@ -326,19 +321,12 @@ select {
 
 @media (max-width: 760px) {
   .site-footer {
-    grid-template-columns: 1fr;
-    padding: 0 12px;
-    text-align: center;
+    gap: 2px 12px;
+    padding: 8px 12px;
   }
 
-  .site-footer > span:first-child,
-  .site-footer > span:last-child,
-  .footer-center {
-    display: none;
-  }
-
-  .site-footer::after {
-    content: 'LOCAL ARCHIVE / NO REMOTE API';
+  .footer-github {
+    font-size: .6rem;
   }
 }
 

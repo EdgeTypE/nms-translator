@@ -168,15 +168,19 @@ import { phrasebookLookup } from './lib/stores/lookup';
     </main>
 
     <footer class="site-footer">
-      <span>UNOFFICIAL FAN UTILITY / NOT AFFILIATED WITH HELLGAME GAMES</span>
-      <span class="footer-center">
-        <kbd>Ctrl</kbd><b>+</b><kbd>Enter</kbd>
-        Translate
-        <i></i>
-        <kbd>Esc</kbd>
-        Clear
+      <span class="footer-legal">
+        Unofficial fan project. Not approved, endorsed or affiliated with
+        Hello Games or No Man's Sky.
       </span>
-      <span>NO REMOTE API / BROWSER LOCAL</span>
+      <a
+        class="footer-github"
+        href="https://github.com/edgetype/nms-translator"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        <Icon name="github" size={13} strokeWidth={1.6} />
+        <span>github.com/edgetype/nms-translator</span>
+      </a>
     </footer>
   </div>
 {/if}

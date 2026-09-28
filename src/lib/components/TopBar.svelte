@@ -74,6 +74,23 @@
       </a>
     {/each}
   </nav>
+
+  <!--
+    Lives in the topbar's empty third track, so the nav stays optically
+    centred without any grid change. Static on purpose: the site advertises
+    that everything runs in the browser, and a live count would mean a request
+    to the GitHub API on every page load.
+  -->
+  <a
+    class="star-button"
+    href="https://github.com/edgetype/nms-translator"
+    target="_blank"
+    rel="noopener noreferrer"
+    aria-label="Star nms-translator on GitHub"
+  >
+    <Icon name="star" size={15} />
+    <span>Star on GitHub</span>
+  </a>
 </header>
 
 <div class="status-strip" aria-label="Archive sync status">
@@ -199,6 +216,35 @@
     transform: scaleX(1);
   }
 
+  /* Chamfered like the other HUD panels in the app, sized down for the much
+     smaller box (the shared 18px cut would swallow a 34px-tall button). */
+  .star-button {
+    align-self: center;
+    justify-self: end;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-right: 32px;
+    padding: 0 16px;
+    height: 34px;
+    border: 1px solid rgba(255, 216, 75, .4);
+    clip-path: polygon(0 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%);
+    color: var(--signal-yellow);
+    background: rgba(255, 216, 75, .05);
+    font-size: .7rem;
+    font-weight: 500;
+    letter-spacing: .14em;
+    text-decoration: none;
+    text-transform: uppercase;
+    white-space: nowrap;
+    transition: border-color 160ms ease, background 160ms ease;
+  }
+
+  .star-button:hover {
+    border-color: rgba(255, 216, 75, .8);
+    background: rgba(255, 216, 75, .12);
+  }
+
   .status-strip {
     position: relative;
     z-index: 19;
@@ -258,6 +304,13 @@
       padding: 0 16px;
     }
 
+    .star-button {
+      margin-right: 18px;
+      padding: 0 12px;
+      font-size: .64rem;
+      letter-spacing: .1em;
+    }
+
     .status-strip {
       padding: 0 18px;
     }
@@ -297,6 +350,17 @@
       min-width: 106px;
       padding: 0 12px;
       font-size: .66rem;
+    }
+
+    /* Icon-only on the scrollable bar, matching .brand-copy above. */
+    .star-button {
+      flex: 0 0 auto;
+      margin-right: 12px;
+      padding: 0 12px;
+    }
+
+    .star-button span {
+      display: none;
     }
 
     .status-strip {

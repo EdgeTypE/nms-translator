@@ -20,9 +20,15 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
  */
 const WORD_INDEX_BOOTSTRAP = ['manifest.js', 'words.js'];
 
-/** Public origin, overridable for forks/deployments. */
-const SITE_ORIGIN = (process.env.VITE_SITE_ORIGIN ?? 'https://nms-translator.pages.dev')
-  .replace(/\/+$/, '');
+/**
+ * Public origin, baked into canonical URLs, robots.txt and sitemap.xml.
+ *
+ * Deliberately a constant rather than an env var: the site is deployed to one
+ * address, and a .env file would not have worked anyway -- this script runs in a
+ * plain Node process before Vite (prebuild / predev), which does not read .env.
+ * Change this line when the deployment address changes.
+ */
+const SITE_ORIGIN = 'https://edgetype.github.io/nms-translator';
 
 export const PAGES = [
   {
