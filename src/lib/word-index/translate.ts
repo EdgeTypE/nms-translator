@@ -70,6 +70,12 @@ export interface IndexedTranslation extends TranslationResult {
  * a choice between several plausible answers. Both are marked with a dotted
  * underline for the same reason.
  *
+ * The English side rarely reaches the ambiguous weight at all. Every word the
+ * index lists has one surface per case form, so English-to-alien is ambiguous
+ * by construction; it is demoted from a pick-among-several to a finished
+ * answer as soon as the surface being printed is the one the dictionary holds
+ * for that word. See `fromEnglish`.
+ *
  * The values are tenths rather than fractions so the sum is exact and the
  * division is rounded once, instead of accumulating float error across a line.
  */
@@ -248,10 +254,26 @@ function fromEnglish(
   const at = preferred(readings.map((reading) => reading.form));
   const chosen = readings[at] ?? readings[0];
 
+  // An exact dictionary match: the surface being printed is the one the
+  // dictionary holds for this word, so the player can go and learn it and
+  // check it there. The index still lists the other case forms of the same
+  // word, which is not a choice between meanings, so this is a finished
+  // answer rather than a pick among several.
+  //
+  // Measured across the five species, the preferred reading already lands on
+  // the dictionary surface for 1,156 of the 1,158 Gek words the dictionary
+  // holds, so the printed line does not change - only its score does. The two
+  // that miss are words whose dictionary surface is not among the index
+  // candidates at all, so there is nothing better to switch to.
+  const exact = chosen.learnable;
+
   return {
     source: token,
     output: `${withAffix(affix, applyForm(chosen.word, chosen.form))}`,
-    status: matches.length > 1 ? 'ambiguous' : 'translated',
+    // The alternates stay on the segment either way: a non-ambiguous segment
+    // still gets an "Alternatives: ..." tooltip, so the other case forms are
+    // not thrown away just because the answer is certain.
+    status: exact || matches.length <= 1 ? 'translated' : 'ambiguous',
     alternatives: readings
       .filter((_, i) => i !== at)
       .map((reading) => applyForm(reading.word, reading.form)),

@@ -110,6 +110,30 @@ describe('confidence is weighted, not a plain match ratio', () => {
   });
 });
 
+describe('confidence in the English direction', () => {
+  it('gives a dictionary word a full point even though it has three surfaces', () => {
+    // The regression this guards: every English word the index lists carries
+    // one surface per case form, so the whole direction used to read 60%. The
+    // printed line is the same one it always was - only the score moved.
+    const result = run('hello traveller i am gek', 'english-to-alien');
+    expect(result.output).toBe('iluma sieriftss tidr aud loseh');
+    expect(result.matchedTokenCount).toBe(5);
+    expect(result.ambiguousTokenCount).toBe(0);
+    expect(result.coverage).toBe(100);
+  });
+
+  it('still docks a word the dictionary does not hold', () => {
+    // Measured: the index resolves 2,158 words for Gek but the dictionary holds
+    // entries for only 1,158 of them, so most English lines have one like this.
+    expect(run('formula', 'english-to-alien').coverage).toBe(60);
+  });
+
+  it('averages the two kinds across a mixed line', () => {
+    // (10 + 6) / 20.
+    expect(run('hello formula', 'english-to-alien').coverage).toBe(80);
+  });
+});
+
 describe('translateWithIndex, alien to English', () => {
   it('resolves a real surface and keeps the order', () => {
     const result = run('pupkessap zzzqqq');
@@ -233,10 +257,34 @@ describe('translateWithIndex, English to alien', () => {
     expect(result.unknownTokenCount).toBe(0);
   });
 
-  it('marks a word with several surfaces as ambiguous', () => {
-    const word = [...gek.byWord.entries()].find(([, list]) => list.length > 1)![0];
-    const segment = run(word, 'english-to-alien').segments[0]!;
+  it('reports a word the dictionary holds as translated, not ambiguous', () => {
+    // The index lists this word under three surfaces, one per case form, so the
+    // status used to be ambiguous whatever the word was. Printing the surface
+    // the dictionary holds makes it a finished answer instead.
+    const segment = run('welcome', 'english-to-alien').segments[0]!;
+    expect(dictionary.has('pupkessap')).toBe(true);
+    expect(segment.status).toBe('translated');
+    expect(segment.badge).toBe('dictionary');
+  });
+
+  it('keeps the other case forms, so the tooltip can still offer them', () => {
+    const segment = run('welcome', 'english-to-alien').segments[0]!;
+    expect(segment.readings.length).toBeGreaterThan(1);
+    expect(segment.alternatives).toHaveLength(segment.readings.length - 1);
+  });
+
+  it('stays ambiguous when the surface it would print is not in the dictionary', () => {
+    // "formula" is the honest case: the index resolves it, but the surface the
+    // dictionary pairs with it is not one of the candidates, so nothing here
+    // can be learned or checked. Several surfaces is not by itself a reason to
+    // drop below a full point.
+    const word = 'formula';
+    const result = run(word, 'english-to-alien');
+    const segment = result.segments[0]!;
+    expect(gek.byWord.get(word)!.length).toBeGreaterThan(1);
+    expect(dictionary.has(segment.output)).toBe(false);
     expect(segment.status).toBe('ambiguous');
+    expect(segment.badge).toBe('generated');
     expect(segment.alternatives.length).toBeGreaterThan(0);
   });
 

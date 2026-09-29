@@ -93,7 +93,9 @@ export interface TranslationResult {
    * dictionary engine reports the plain match ratio. The word index reports a
    * weighted score instead, because a word the game generated cannot be checked
    * against the dictionary and an ambiguous word is a pick among several, so
-   * neither earns a full point. See word-index/translate.ts.
+   * neither earns a full point. A word the dictionary does hold earns one, in
+   * either direction, even where the index lists more than one surface for it.
+   * See word-index/translate.ts.
    */
   coverage: number;
   unknownTokens: string[];
