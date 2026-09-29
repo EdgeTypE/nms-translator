@@ -28,19 +28,19 @@ const WORD_INDEX_BOOTSTRAP = ['manifest.js', 'words.js'];
  * plain Node process before Vite (prebuild / predev), which does not read .env.
  * Change this line when the deployment address changes.
  */
-const SITE_ORIGIN = 'https://edgetype.github.io/nms-translator';
+const SITE_ORIGIN = 'https://nms-translator.pages.dev';
 
 export const PAGES = [
   {
     id: 'translate',
     dir: '',
     nav: 'Translate',
-    title: "Alien Translator — No Man's Sky",
+    title: "Alien Translator | No Man's Sky",
     description:
       'Translate Gek, Korvax, Vy’keen, Atlas and Autophage text in No Man\'s Sky. Runs entirely in your browser from a 4,830-entry game-accurate lexicon.',
     h1: "No Man's Sky Alien Translator",
     intro:
-      'Translate every major alien language in No Man’s Sky. Type alien text to decode it into English, or enter English to speak alien — processed entirely on your own device.',
+      "Translate every major alien language in No Man's Sky. Type alien text to decode it into English, or enter English to speak alien.",
     keywords: [
       'No Man\'s Sky translator',
       'alien language translator',
@@ -48,13 +48,17 @@ export const PAGES = [
       'Korvax translator',
       'Vy\'keen translator',
       'NMS alien decoder',
+      'nms translator',
+      'nms alien translator',
+      'autophage translator',
+      'atlas translator',
     ],
   },
   {
     id: 'phrasebook',
     dir: 'phrasebook',
     nav: 'Phrasebook',
-    title: "Alien Phrasebook — No Man's Sky Translator",
+    title: "Alien Phrasebook | No Man's Sky Translator",
     description:
       'Search all 4,830 No Man\'s Sky alien speech entries by English or alien text. Includes every generated surface form for Gek, Korvax, Vy’keen, Atlas and Autophage.',
     h1: 'No Man’s Sky Alien Phrasebook',
@@ -72,7 +76,7 @@ export const PAGES = [
     id: 'npc',
     dir: 'npc',
     nav: 'NPC Dialogue',
-    title: "Talk to Aliens — No Man's Sky NPC Dialogue",
+    title: "Talk to Aliens | No Man's Sky NPC Dialogue",
     description:
       'A full-screen No Man\'s Sky NPC dialogue view. Speak to Gek, Korvax, Vy’keen, Atlas and Autophage with live alien-to-English translation.',
     h1: 'No Man’s Sky NPC Dialogue',
