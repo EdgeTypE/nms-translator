@@ -131,6 +131,12 @@ body.npc-mode {
   background: #150a1f;
 }
 
+/* Same lock for the About dialog. A class rather than inline style so it is
+   removable from the dialog's own onDestroy, the way npc-mode is. */
+body.about-open {
+  overflow: hidden;
+}
+
 body::before {
   content: '';
   position: fixed;
@@ -256,6 +262,47 @@ select {
   opacity: 1;
 }
 
+/* About trigger. Taken out of the flex flow on purpose: the footer centres the
+   legal line and the repo link, so adding a third child would shift both. An
+   absolutely positioned button keeps the existing centring pixel-identical and
+   still lands hard against the right edge. Returns to the flow at the same
+   breakpoint where the footer already reflows. */
+.footer-about {
+  position: absolute;
+  right: 32px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid transparent;
+  color: rgba(147, 167, 180, .7);
+  background: none;
+  font-family: var(--font-body);
+  font-size: .62rem;
+  font-weight: 600;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color .16s ease, border-color .16s ease;
+}
+
+.footer-about .icon {
+  opacity: .7;
+  transition: opacity .16s ease;
+}
+
+.footer-about:hover,
+.footer-about:focus-visible {
+  color: rgba(112, 193, 209, .95);
+  border-color: rgba(112, 193, 209, .3);
+}
+
+.footer-about:hover .icon,
+.footer-about:focus-visible .icon {
+  opacity: 1;
+}
+
 /* Custom pointer. Deliberately pixel-identical to the NPC dialogue reticle in
    NpcView.svelte so the pointer does not change shape when moving between the
    two pages: 2px white ring, drop shadow, solid centre dot, no crosshair. */
@@ -263,7 +310,12 @@ select {
   position: fixed;
   left: 0;
   top: 0;
-  z-index: 90;
+  /* Above the About dialog (backdrop 400 / panel 401). The native pointer is
+     suppressed site-wide, so the reticle is the only cursor a visitor has - it
+     has to stay on top of any layer, or it reads as a washed-out smudge under
+     the modal's dimmed backdrop. It is pointer-events:none and aria-hidden, so
+     being on top costs the dialog nothing. */
+  z-index: 402;
   width: 34px;
   height: 34px;
   margin: -17px 0 0 -17px;
@@ -327,6 +379,14 @@ select {
 
   .footer-github {
     font-size: .6rem;
+  }
+
+  /* Back into the flow: absolute positioning would overlap the wrapped legal
+     line here, since the footer is taller than one row at this width. */
+  .footer-about {
+    position: static;
+    margin-left: auto;
+    padding: 4px 8px;
   }
 }
 

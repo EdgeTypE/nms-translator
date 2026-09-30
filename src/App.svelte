@@ -5,6 +5,7 @@
   import { loadSession, pathFor, resolveRace, resolveView, saveSession } from './lib/routing';
 import { phrasebookLookup } from './lib/stores/lookup';
   import type { RaceName, ViewId } from './lib/types';
+  import AboutDialog from './lib/components/AboutDialog.svelte';
   import Icon from './lib/components/Icon.svelte';
   import NpcView from './lib/components/NpcView.svelte';
   import PhrasebookView from './lib/components/PhrasebookView.svelte';
@@ -25,6 +26,14 @@ import { phrasebookLookup } from './lib/stores/lookup';
   let draftDirection: 'alien-to-english' | 'english-to-alien' = 'alien-to-english';
 
   let notFound = false;
+
+  /**
+   * The About dialog lives here rather than in either view because the footer
+   * that triggers it lives here, and because it must close on navigation: the
+   * dialog is a layer over whichever view is mounted, so letting it survive a
+   * route change would leave the About text floating over the new view.
+   */
+  let aboutOpen = false;
 
   onMount(() => {
     const initial = resolveView(window.location);
@@ -103,6 +112,7 @@ import { phrasebookLookup } from './lib/stores/lookup';
 
   function navigate(view: ViewId) {
     if (view === activeView && !notFound) return;
+    aboutOpen = false;
     notFound = false;
     activeView = view;
     window.history.pushState(null, '', pathFor(view));
@@ -120,6 +130,14 @@ import { phrasebookLookup } from './lib/stores/lookup';
     cursorX = event.clientX;
     cursorY = event.clientY;
     cursorVisible = true;
+  }
+
+  function openAbout() {
+    aboutOpen = true;
+  }
+
+  function closeAbout() {
+    aboutOpen = false;
   }
 </script>
 
@@ -181,8 +199,26 @@ import { phrasebookLookup } from './lib/stores/lookup';
         <Icon name="github" size={13} strokeWidth={1.6} />
         <span>github.com/edgetype/nms-translator</span>
       </a>
+      <button class="footer-about" type="button" onclick={openAbout} aria-haspopup="dialog">
+        <Icon name="info" size={13} />
+        <span>About</span>
+      </button>
     </footer>
   </div>
+{/if}
+
+<!--
+  Hoisted out of the branches above, so it covers whichever view is mounted
+  instead of only the one that triggered it: the notices apply to the site, not
+  to a route, and the dialog must not be torn down and rebuilt by a navigation
+  that navigate() has already closed it for.
+
+  Only reachable from the footer, which renders on the two real views. The 404
+  page has no footer, so a visitor who lands on a dead link cannot reach it -
+  worth knowing, since that page is where a stray link most often ends up.
+-->
+{#if aboutOpen}
+  <AboutDialog onClose={closeAbout} />
 {/if}
 
 <!-- NPC mode draws its own reticle, so the global one is skipped there. It is
